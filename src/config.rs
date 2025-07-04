@@ -27,21 +27,35 @@ impl Config {
     pub fn load() -> io::Result<Self> {
         let path = match config_path() {
             Some(p) => p,
-            None => return Err(io::Error::new(io::ErrorKind::NotFound, "No config dir found")),
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "No config dir found",
+                ));
+            }
         };
         if !path.exists() {
             return Ok(Config::default());
         }
         let contents = fs::read_to_string(&path)?;
-        let config = toml::from_str(&contents)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Self::load_from_string(&contents)
+    }
+
+    fn load_from_string(contents: &str) -> io::Result<Self> {
+        let config =
+            toml::from_str(contents).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         Ok(config)
     }
 
     pub fn store(&self) -> io::Result<()> {
         let path = match config_path() {
             Some(p) => p,
-            None => return Err(io::Error::new(io::ErrorKind::NotFound, "No config dir found")),
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "No config dir found",
+                ));
+            }
         };
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -61,7 +75,7 @@ mod tests {
     #[test]
     fn test_empty_string_parses() {
         let toml = "";
-        let config: Config = toml::from_str(toml).unwrap();
+        let config: Config = Config::load_from_string(toml).unwrap();
         assert_eq!(config.stores.len(), 0);
     }
 
@@ -74,7 +88,7 @@ mod tests {
         type = "git"
         extra = 123
         "#;
-        let config: Config = toml::from_str(toml).unwrap();
+        let config: Config = Config::load_from_string(toml).unwrap();
         assert_eq!(config.stores.len(), 1);
         assert_eq!(config.stores[0].path, "p");
         assert_eq!(config.stores[0].store_type, "git");
@@ -90,11 +104,11 @@ mod tests {
         path = "path2"
         type = "git"
         "#;
-        let config: Config = toml::from_str(toml).unwrap();
+        let config: Config = Config::load_from_string(toml).unwrap();
         assert_eq!(config.stores.len(), 2);
         assert_eq!(config.stores[0].path, "path1");
         assert_eq!(config.stores[0].store_type, "git");
         assert_eq!(config.stores[1].path, "path2");
         assert_eq!(config.stores[1].store_type, "git");
     }
-} 
+}
