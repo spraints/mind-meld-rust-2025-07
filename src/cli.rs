@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(name = "mm")]
@@ -10,6 +10,8 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    /// Show status (this is the default action)
+    Status,
     /// Manage stores (e.g., git repos)
     Store(StoreCommand),
     /// Track a file
@@ -51,4 +53,4 @@ pub struct TrackCommand {
     /// Track a mindstorms file
     #[arg(long)]
     pub mindstorms: Option<String>,
-} 
+}

@@ -5,7 +5,7 @@ use cli::{Cli, Commands, StoreSubcommand};
 fn main() {
     let cli = Cli::parse();
     match &cli.command {
-        None => {
+        None | Some(Commands::Status) => {
             // Show which files exist, which are tracked, which stores are used.
             println!("Show status (not yet implemented)");
         }
