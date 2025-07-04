@@ -29,20 +29,17 @@ fn config_path() -> Option<PathBuf> {
     })
 }
 
+fn get_config_path<P: Into<PathBuf>>(path: Option<P>) -> io::Result<PathBuf> {
+    match path {
+        Some(p) => Ok(p.into()),
+        None => config_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No config dir found")),
+    }
+}
+
 impl Config {
     pub fn load(path: Option<&str>) -> io::Result<Self> {
-        let path = match path {
-            Some(p) => p.into(),
-            None => match config_path() {
-                Some(p) => p,
-                None => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::NotFound,
-                        "No config dir found",
-                    ));
-                }
-            },
-        };
+        let path = get_config_path(path)?;
         if !path.exists() {
             return Ok(Config::default());
         }
@@ -59,18 +56,7 @@ impl Config {
     }
 
     pub fn store(&self) -> io::Result<()> {
-        let path = match &self.config_path {
-            Some(p) => p.clone(),
-            None => match config_path() {
-                Some(p) => p,
-                None => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::NotFound,
-                        "No config dir found",
-                    ));
-                }
-            },
-        };
+        let path = get_config_path(self.config_path.as_deref())?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
