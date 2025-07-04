@@ -7,6 +7,9 @@ use std::path::PathBuf;
 pub struct Config {
     #[serde(default)]
     pub stores: Vec<StoreConfig>,
+
+    pub mindstorms_path: Option<String>,
+    pub spike_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -80,6 +83,8 @@ mod tests {
         let toml = "";
         let config: Config = Config::load_from_string(toml).unwrap();
         assert_eq!(config.stores.len(), 0);
+        assert_eq!(config.mindstorms_path, None);
+        assert_eq!(config.spike_path, None);
     }
 
     #[test]
@@ -113,5 +118,19 @@ mod tests {
         assert_eq!(config.stores[0].store_type, "git");
         assert_eq!(config.stores[1].path, "path2");
         assert_eq!(config.stores[1].store_type, "git");
+    }
+
+    #[test]
+    fn test_overrides_parses() {
+        let toml = r#"
+        mindstorms_path = "path/to/mindstorms"
+        spike_path = "path/to/spike"
+        "#;
+        let config: Config = Config::load_from_string(toml).unwrap();
+        assert_eq!(
+            config.mindstorms_path,
+            Some("path/to/mindstorms".to_string())
+        );
+        assert_eq!(config.spike_path, Some("path/to/spike".to_string()));
     }
 }
