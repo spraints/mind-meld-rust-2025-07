@@ -1,5 +1,6 @@
 mod cli;
 mod config;
+mod dirs;
 use clap::Parser;
 use cli::{Cli, Commands, StoreSubcommand};
 use config::Config;
