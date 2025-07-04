@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
+    #[serde(default)]
     pub stores: Vec<StoreConfig>,
 }
 
@@ -50,5 +51,50 @@ impl Config {
         let mut file = fs::File::create(&path)?;
         file.write_all(toml.as_bytes())?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_string_parses() {
+        let toml = "";
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(config.stores.len(), 0);
+    }
+
+    #[test]
+    fn test_extra_info_parses() {
+        let toml = r#"
+        foo = "bar"
+        [[stores]]
+        path = "p"
+        type = "git"
+        extra = 123
+        "#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(config.stores.len(), 1);
+        assert_eq!(config.stores[0].path, "p");
+        assert_eq!(config.stores[0].store_type, "git");
+    }
+
+    #[test]
+    fn test_example_parses() {
+        let toml = r#"
+        [[stores]]
+        path = "path1"
+        type = "git"
+        [[stores]]
+        path = "path2"
+        type = "git"
+        "#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(config.stores.len(), 2);
+        assert_eq!(config.stores[0].path, "path1");
+        assert_eq!(config.stores[0].store_type, "git");
+        assert_eq!(config.stores[1].path, "path2");
+        assert_eq!(config.stores[1].store_type, "git");
     }
 } 

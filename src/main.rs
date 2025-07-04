@@ -1,3 +1,4 @@
+mod config;
 mod cli;
 use clap::Parser;
 use cli::{Cli, Commands, StoreSubcommand};
