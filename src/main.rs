@@ -6,10 +6,7 @@ use cli::{Cli, Commands, StoreSubcommand};
 fn main() {
     let cli = Cli::parse();
     match &cli.command {
-        None | Some(Commands::Status) => {
-            // Show which files exist, which are tracked, which stores are used.
-            println!("Show status (not yet implemented)");
-        }
+        None | Some(Commands::Status) => cmd_status(config),
         Some(Commands::Store(store_cmd)) => match &store_cmd.subcommand {
             StoreSubcommand::Create { git, path } => {
                 println!("Create store: git={}, path={}", git, path);
@@ -36,4 +33,8 @@ fn main() {
             println!("Watch for changes (not yet implemented)");
         }
     }
+}
+
+fn cmd_status(config: Config) {
+    println!("{config:?}");
 }
