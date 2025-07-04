@@ -49,11 +49,24 @@ fn cmd_status(config: Config) {
     if config.stores.len() == 0 {
         println!("No stores yet!");
         println!("Get started by running '{} store create'.", exe());
+        return;
     }
-    for store in &config.stores {
-        println!("todo: show store state: {store:?}");
-        // I think I'm going to keep track of which files are
+
+    println!("Stores:");
+    for st in &config.stores {
+        println!("  {st}");
     }
+    println!();
+
+    println!(
+        "todo: get the tracked files from the stores. This will give me a list of (store, program, filename, contents)."
+    );
+    println!(
+        "todo: get the tracked files from the filesystem. Given the distinct set of (program, filename), get contents for each."
+    );
+    println!(
+        "todo: compare it all. Probably compare checksums? Or maybe it's easier just to walk through each part of the zip files."
+    );
 }
 
 fn cmd_store(cmd: cli::StoreCommand, config: Config) {
