@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -42,11 +44,11 @@ pub enum StoreSubcommand {
 
 #[derive(Args, Debug)]
 pub struct CreateStoreArgs {
-    /// Use git as the store backend
-    #[arg(long)]
-    pub git: bool,
+    /// The store type (git is the only option)
+    #[arg(long = "type")]
+    pub store_type: String,
     /// Path to the repo
-    pub path: String,
+    pub path: PathBuf,
 }
 
 #[derive(Args, Debug)]

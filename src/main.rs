@@ -1,22 +1,17 @@
 mod cli;
 mod config;
 mod dirs;
+mod store;
+
 use clap::Parser;
 use config::Config;
 
 fn main() {
     let cli = cli::Cli::parse();
     let config = Config::load(cli.config.as_deref()).unwrap();
-    match &cli.command {
-        None | Some(cli::Commands::Status) => cmd_status(&config),
-        Some(cli::Commands::Store(store_cmd)) => match &store_cmd.subcommand {
-            cli::StoreSubcommand::Create(cli::CreateStoreArgs { git, path }) => {
-                println!("Create store: git={}, path={}", git, path);
-            }
-            cli::StoreSubcommand::Remove(cli::RemoveStoreArgs { path }) => {
-                println!("Remove store: path={}", path);
-            }
-        },
+    match cli.command {
+        None | Some(cli::Commands::Status) => cmd_status(config),
+        Some(cli::Commands::Store(store_cmd)) => cmd_store(store_cmd, config),
         Some(cli::Commands::Track(track_cmd)) => {
             if let Some(spike) = &track_cmd.spike {
                 println!("Track spike file: {}", spike);
@@ -37,7 +32,7 @@ fn main() {
     }
 }
 
-fn cmd_status(config: &Config) {
+fn cmd_status(config: Config) {
     let mut any_overrides = false;
     if let Some(p) = &config.mindstorms_path {
         println!("Mindstorms path override: {p:?}");
@@ -52,12 +47,31 @@ fn cmd_status(config: &Config) {
     }
 
     if config.stores.len() == 0 {
+        println!("No stores yet!");
         println!("Get started by running '{} store create'.", exe());
     }
     for store in &config.stores {
         println!("todo: show store state: {store:?}");
         // I think I'm going to keep track of which files are
     }
+}
+
+fn cmd_store(cmd: cli::StoreCommand, config: Config) {
+    match cmd.subcommand {
+        cli::StoreSubcommand::Create(args) => cmd_store_create(args, config),
+        cli::StoreSubcommand::Remove(args) => cmd_store_remove(args, config),
+    }
+}
+
+fn cmd_store_create(args: cli::CreateStoreArgs, mut config: Config) {
+    let cli::CreateStoreArgs { store_type, path } = args;
+    let store = store::create(&store_type, path).unwrap();
+    config.stores.push(store.into());
+    config.store().unwrap();
+}
+
+fn cmd_store_remove(args: cli::RemoveStoreArgs, config: Config) {
+    println!("todo: remove store {args:?}");
 }
 
 fn exe() -> String {

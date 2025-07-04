@@ -8,8 +8,8 @@ pub struct Config {
     #[serde(default)]
     pub stores: Vec<StoreConfig>,
 
-    pub mindstorms_path: Option<String>,
-    pub spike_path: Option<String>,
+    pub mindstorms_path: Option<PathBuf>,
+    pub spike_path: Option<PathBuf>,
 
     #[serde(skip)]
     config_path: Option<PathBuf>,
@@ -17,7 +17,7 @@ pub struct Config {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StoreConfig {
-    pub path: String,
+    pub path: PathBuf,
     #[serde(rename = "type")]
     pub store_type: String,
 }
