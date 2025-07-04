@@ -65,13 +65,33 @@ fn cmd_store(cmd: cli::StoreCommand, config: Config) {
 
 fn cmd_store_create(args: cli::CreateStoreArgs, mut config: Config) {
     let cli::CreateStoreArgs { store_type, path } = args;
-    let store = store::create(&store_type, path).unwrap();
-    config.stores.push(store.into());
+    for st in &config.stores {
+        if store::paths_match(&st.path, &path) {
+            println!("Already using {st}");
+            return;
+        }
+    }
+    let store = store::create(&store_type, path).unwrap().into();
+    println!("Started using {}", store);
+    config.stores.push(store);
     config.store().unwrap();
 }
 
-fn cmd_store_remove(args: cli::RemoveStoreArgs, config: Config) {
-    println!("todo: remove store {args:?}");
+fn cmd_store_remove(args: cli::RemoveStoreArgs, mut config: Config) {
+    let cli::RemoveStoreArgs { path } = args;
+    let mut new_stores = Vec::new();
+    let mut removed = 0;
+    for st in config.stores {
+        if store::paths_match(&st.path, &path) {
+            println!("Stopped using {st}");
+            removed += 1;
+        } else {
+            new_stores.push(st);
+        }
+    }
+    config.stores = new_stores;
+    config.store().unwrap();
+    println!("Stores removed: {removed}");
 }
 
 fn exe() -> String {

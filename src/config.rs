@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -20,6 +21,12 @@ pub struct StoreConfig {
     pub path: PathBuf,
     #[serde(rename = "type")]
     pub store_type: String,
+}
+
+impl Display for StoreConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} ({})", self.path, self.store_type)
+    }
 }
 
 fn config_path() -> Option<PathBuf> {

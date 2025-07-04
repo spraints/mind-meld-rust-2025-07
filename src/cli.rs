@@ -54,7 +54,7 @@ pub struct CreateStoreArgs {
 #[derive(Args, Debug)]
 pub struct RemoveStoreArgs {
     /// Path to the repo
-    pub path: String,
+    pub path: PathBuf,
 }
 
 #[derive(Args, Debug)]
