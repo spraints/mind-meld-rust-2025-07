@@ -35,18 +35,24 @@ pub struct StoreCommand {
 #[derive(Subcommand, Debug)]
 pub enum StoreSubcommand {
     /// Create a store (e.g., a git repo)
-    Create {
-        /// Use git as the store backend
-        #[arg(long)]
-        git: bool,
-        /// Path to the repo
-        path: String,
-    },
+    Create(CreateStoreArgs),
     /// Remove a store
-    Remove {
-        /// Path to the repo
-        path: String,
-    },
+    Remove(RemoveStoreArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct CreateStoreArgs {
+    /// Use git as the store backend
+    #[arg(long)]
+    pub git: bool,
+    /// Path to the repo
+    pub path: String,
+}
+
+#[derive(Args, Debug)]
+pub struct RemoveStoreArgs {
+    /// Path to the repo
+    pub path: String,
 }
 
 #[derive(Args, Debug)]

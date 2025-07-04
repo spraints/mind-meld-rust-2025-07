@@ -2,7 +2,7 @@ mod cli;
 mod config;
 mod dirs;
 use clap::Parser;
-use cli::{Cli, Commands, StoreSubcommand};
+use cli::{Cli, Commands, CreateStoreArgs, RemoveStoreArgs, StoreSubcommand};
 use config::Config;
 
 fn main() {
@@ -11,10 +11,10 @@ fn main() {
     match &cli.command {
         None | Some(Commands::Status) => cmd_status(&config),
         Some(Commands::Store(store_cmd)) => match &store_cmd.subcommand {
-            StoreSubcommand::Create { git, path } => {
+            StoreSubcommand::Create(CreateStoreArgs { git, path }) => {
                 println!("Create store: git={}, path={}", git, path);
             }
-            StoreSubcommand::Remove { path } => {
+            StoreSubcommand::Remove(RemoveStoreArgs { path }) => {
                 println!("Remove store: path={}", path);
             }
         },
