@@ -24,15 +24,18 @@ fn config_path() -> Option<PathBuf> {
 }
 
 impl Config {
-    pub fn load() -> io::Result<Self> {
-        let path = match config_path() {
-            Some(p) => p,
-            None => {
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "No config dir found",
-                ));
-            }
+    pub fn load(path: Option<&str>) -> io::Result<Self> {
+        let path = match path {
+            Some(p) => p.into(),
+            None => match config_path() {
+                Some(p) => p,
+                None => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        "No config dir found",
+                    ));
+                }
+            },
         };
         if !path.exists() {
             return Ok(Config::default());

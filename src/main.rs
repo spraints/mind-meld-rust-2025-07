@@ -1,10 +1,12 @@
-mod config;
 mod cli;
+mod config;
 use clap::Parser;
 use cli::{Cli, Commands, StoreSubcommand};
+use config::Config;
 
 fn main() {
     let cli = Cli::parse();
+    let config = Config::load(cli.config.as_deref()).unwrap();
     match &cli.command {
         None | Some(Commands::Status) => cmd_status(config),
         Some(Commands::Store(store_cmd)) => match &store_cmd.subcommand {

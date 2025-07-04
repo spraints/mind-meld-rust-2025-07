@@ -4,6 +4,10 @@ use clap::{Args, Parser, Subcommand};
 #[command(name = "mm")]
 #[command(about = "Mind meld CLI", long_about = None)]
 pub struct Cli {
+    /// Config file location (default is system-dependent).
+    #[arg(long, global = true)]
+    pub config: Option<String>,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
