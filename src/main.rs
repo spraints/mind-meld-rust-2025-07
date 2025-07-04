@@ -2,23 +2,22 @@ mod cli;
 mod config;
 mod dirs;
 use clap::Parser;
-use cli::{Cli, Commands, CreateStoreArgs, RemoveStoreArgs, StoreSubcommand};
 use config::Config;
 
 fn main() {
-    let cli = Cli::parse();
+    let cli = cli::Cli::parse();
     let config = Config::load(cli.config.as_deref()).unwrap();
     match &cli.command {
-        None | Some(Commands::Status) => cmd_status(&config),
-        Some(Commands::Store(store_cmd)) => match &store_cmd.subcommand {
-            StoreSubcommand::Create(CreateStoreArgs { git, path }) => {
+        None | Some(cli::Commands::Status) => cmd_status(&config),
+        Some(cli::Commands::Store(store_cmd)) => match &store_cmd.subcommand {
+            cli::StoreSubcommand::Create(cli::CreateStoreArgs { git, path }) => {
                 println!("Create store: git={}, path={}", git, path);
             }
-            StoreSubcommand::Remove(RemoveStoreArgs { path }) => {
+            cli::StoreSubcommand::Remove(cli::RemoveStoreArgs { path }) => {
                 println!("Remove store: path={}", path);
             }
         },
-        Some(Commands::Track(track_cmd)) => {
+        Some(cli::Commands::Track(track_cmd)) => {
             if let Some(spike) = &track_cmd.spike {
                 println!("Track spike file: {}", spike);
             }
@@ -29,10 +28,10 @@ fn main() {
                 println!("No file specified to track.");
             }
         }
-        Some(Commands::Snapshot) => {
+        Some(cli::Commands::Snapshot) => {
             println!("Snapshot changes (not yet implemented)");
         }
-        Some(Commands::Watch) => {
+        Some(cli::Commands::Watch) => {
             println!("Watch for changes (not yet implemented)");
         }
     }
