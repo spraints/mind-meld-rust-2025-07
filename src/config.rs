@@ -10,6 +10,9 @@ pub struct Config {
 
     pub mindstorms_path: Option<String>,
     pub spike_path: Option<String>,
+
+    #[serde(skip)]
+    config_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,7 +47,9 @@ impl Config {
             return Ok(Config::default());
         }
         let contents = fs::read_to_string(&path)?;
-        Self::load_from_string(&contents)
+        let mut cfg = Self::load_from_string(&contents)?;
+        cfg.config_path = Some(path);
+        Ok(cfg)
     }
 
     fn load_from_string(contents: &str) -> io::Result<Self> {
@@ -54,14 +59,17 @@ impl Config {
     }
 
     pub fn store(&self) -> io::Result<()> {
-        let path = match config_path() {
-            Some(p) => p,
-            None => {
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "No config dir found",
-                ));
-            }
+        let path = match &self.config_path {
+            Some(p) => p.clone(),
+            None => match config_path() {
+                Some(p) => p,
+                None => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        "No config dir found",
+                    ));
+                }
+            },
         };
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
