@@ -25,7 +25,14 @@ pub struct StoreConfig {
 
 impl Display for StoreConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} ({})", self.path, self.store_type)
+        let path = match std::env::current_dir() {
+            Err(_) => self.path.to_string_lossy().to_string(),
+            Ok(pwd) => match pathdiff::diff_paths(&self.path, &pwd) {
+                None => self.path.to_string_lossy().to_string(),
+                Some(rel) => rel.to_string_lossy().to_string(),
+            },
+        };
+        write!(f, "{} ({})", path, self.store_type)
     }
 }
 
