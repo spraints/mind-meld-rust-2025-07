@@ -17,7 +17,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Show status (this is the default action)
-    Status,
+    Status(StatusCommand),
     /// Manage stores (e.g., git repos)
     Store(StoreCommand),
     /// Track a file
@@ -26,6 +26,13 @@ pub enum Commands {
     Snapshot,
     /// Continuously add changes
     Watch,
+}
+
+#[derive(Args, Debug, Default)]
+pub struct StatusCommand {
+    /// Also show projects that aren't tracked yet.
+    #[arg(long = "untracked")]
+    pub show_untracked: bool,
 }
 
 #[derive(Args, Debug)]

@@ -16,7 +16,8 @@ fn main() {
     let cli = cli::Cli::parse();
     let config = Config::load(cli.config.as_deref()).unwrap();
     match cli.command {
-        None | Some(cli::Commands::Status) => cmd_status(config),
+        None => cmd_status(Default::default(), config),
+        Some(cli::Commands::Status(status_cmd)) => cmd_status(status_cmd, config),
         Some(cli::Commands::Store(store_cmd)) => cmd_store(store_cmd, config),
         Some(cli::Commands::Track(track_cmd)) => {
             if let Some(spike) = &track_cmd.spike {
@@ -38,7 +39,9 @@ fn main() {
     }
 }
 
-fn cmd_status(config: Config) {
+fn cmd_status(cmd: cli::StatusCommand, config: Config) {
+    let cli::StatusCommand { show_untracked } = cmd;
+
     let mut any_overrides = false;
     if let Some(p) = &config.mindstorms_path {
         println!("Mindstorms path override: {p:?}");
@@ -98,8 +101,13 @@ fn cmd_status(config: Config) {
     println!(
         "todo: compare it all. Probably compare checksums? Or maybe it's easier just to walk through each part of the zip files."
     );
-    println!("Projects:");
+    let mut untracked_count = 0;
     for (proj, (exists_locally, stores)) in projects {
+        if stores.is_empty() && !show_untracked {
+            untracked_count += 1;
+            continue;
+        }
+
         println!("  {proj}");
         if exists_locally {
             println!("    [CONTENT HASH] exists on disk");
@@ -109,6 +117,13 @@ fn cmd_status(config: Config) {
         for st in stores {
             println!("    [CONTENT HASH] {st}");
         }
+    }
+
+    if untracked_count > 0 {
+        println!(
+            "  untracked: {untracked_count} (Run '{} status --untracked' to list them.)",
+            exe()
+        );
     }
 }
 
