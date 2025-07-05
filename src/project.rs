@@ -1,9 +1,18 @@
-use std::fmt::Display;
+use std::{fmt::Display, path::PathBuf};
+
+use crate::dirs::Dirs;
 
 #[derive(Eq, Hash, PartialEq, Clone, Copy)]
 pub enum Program {
     Mindstorms,
     Spike,
+}
+
+pub fn all_programs(dirs: Dirs) -> Vec<(Program, PathBuf)> {
+    vec![
+        (Program::Mindstorms, dirs.mindstorms),
+        (Program::Spike, dirs.spike),
+    ]
 }
 
 const PROGRAM_MINDSTORMS: &'static str = "mindstorms";

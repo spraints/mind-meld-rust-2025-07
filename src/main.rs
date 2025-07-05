@@ -1,3 +1,4 @@
+mod app;
 mod cli;
 mod config;
 mod dirs;
@@ -41,6 +42,7 @@ fn main() {
 
 fn cmd_status(cmd: cli::StatusCommand, config: Config) {
     let cli::StatusCommand { show_untracked } = cmd;
+    let dirs = dirs::Dirs::new(&config).unwrap();
 
     let mut any_overrides = false;
     if let Some(p) = &config.mindstorms_path {
@@ -87,10 +89,12 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
     }
     println!();
 
-    println!(
-        "todo: get the tracked files from the filesystem. Given the distinct set of (program, filename), get contents for each."
-    );
-    println!();
+    for proj in app::all_projects(dirs).expect("unexpected error") {
+        projects
+            .entry(proj)
+            .and_modify(|e| e.0 = true)
+            .or_insert((true, Vec::new()));
+    }
 
     if projects.is_empty() {
         println!("No projects yet!");
@@ -101,6 +105,9 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
     println!(
         "todo: compare it all. Probably compare checksums? Or maybe it's easier just to walk through each part of the zip files."
     );
+    println!();
+
+    println!("Projects:");
     let mut untracked_count = 0;
     for (proj, (exists_locally, stores)) in projects {
         if stores.is_empty() && !show_untracked {
