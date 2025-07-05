@@ -1,6 +1,9 @@
 // This file is for random tests.
 
-use std::io::Read;
+use std::{
+    io::{Cursor, Read},
+    path::Path,
+};
 
 #[path = "../config.rs"]
 mod config;
@@ -24,82 +27,73 @@ fn zzz() {
     let dirs = dirs::Dirs::new(&cfg).unwrap();
 
     for (dir_type, filename) in files {
+        println!("{dir_type}/{filename}");
         let dir = match dir_type {
             "spike" => &dirs.spike,
             "mindstorms" => &dirs.mindstorms,
             _ => continue,
         };
         let path = dir.join(filename);
-        describe_file(&path, dir_type);
+        describe_file(&path, "  ");
     }
 }
 
-fn describe_file(file_path: &std::path::Path, dir_type: &str) {
-    if !file_path.exists() {
-        println!(
-            "{}: {} - File not found",
-            dir_type,
-            file_path.file_name().unwrap().to_string_lossy()
-        );
-        return;
-    }
-
-    let file_name = file_path.file_name().unwrap().to_string_lossy();
-    println!("{}: {}", dir_type, file_name);
-
-    // Read file header to determine type
-    let mut file = match std::fs::File::open(file_path) {
-        Ok(f) => f,
-        Err(e) => {
-            println!("  Error opening file: {}", e);
-            return;
-        }
+fn describe_file(path: &Path, indent: &str) {
+    match std::fs::read(path) {
+        Err(e) => println!("{indent}error: {e}"),
+        Ok(contents) => describe_file_contents(&contents, indent),
     };
+}
 
-    let mut header = [0u8; 8];
-    if let Err(e) = file.read_exact(&mut header) {
-        println!("  Error reading file header: {}", e);
+fn describe_file_contents(contents: &[u8], indent: &str) {
+    if contents.is_empty() {
+        println!("{indent}file type: empty");
         return;
     }
 
-    // Check file type
-    if header.starts_with(b"PK") {
-        println!("  Type: ZIP file");
-        describe_zip_contents(file_path);
-    } else if header.starts_with(b"{") || header.starts_with(b"[") {
-        println!("  Type: JSON file");
+    if contents.starts_with(b"PK") {
+        println!("{indent}file type: zip");
+        describe_zip(&contents, indent);
+        return;
+    }
+
+    if contents.starts_with(b"<svg") {
+        println!("{indent}file type: svg");
+        return;
+    }
+
+    // The examples I have start with ff fb 90 64. 'file' identifies this as "MPEG ADTS, layer III,
+    // v1", etc. The docs I've found say that there is supposed to be 12x 1s, then a 0 or 1, then
+    // 2x 0s, but this (ff fb) is 12x 1s, 1x 1, 10. So it's not right, but scratch doesn't seem to
+    // care. So we'll just call 12x 1s good enough.
+    if contents.len() > 2 && contents[0] == 0xff && contents[1] & 0xf0 == 0xf0 {
+        println!("{indent}file type: MPEG");
+        return;
+    }
+
+    if let Ok(_) = serde_json::from_slice::<serde_json::Value>(contents) {
+        println!("{indent}file type: json");
+        return;
+    }
+
+    let magic = if contents.len() > 8 {
+        &contents[..8]
     } else {
-        println!("  Type: Other (header: {:?})", header);
-    }
+        contents
+    };
+    let magicstr = String::from_utf8_lossy(magic);
+    println!("{indent}file type: unknown ({magic:x?} / {magicstr:?})");
 }
 
-fn describe_zip_contents(zip_path: &std::path::Path) {
-    let file = match std::fs::File::open(zip_path) {
-        Ok(f) => f,
-        Err(e) => {
-            println!("    Error opening ZIP: {}", e);
-            return;
-        }
-    };
-
-    let mut archive = match zip::ZipArchive::new(file) {
-        Ok(a) => a,
-        Err(e) => {
-            println!("    Error reading ZIP: {}", e);
-            return;
-        }
-    };
-
-    println!("    Contents:");
-    for i in 0..archive.len() {
-        if let Ok(file) = archive.by_index(i) {
-            let name = file.name();
-            println!("      {}", name);
-
-            // Check if this is a nested ZIP file
-            if name.ends_with(".zip") || name.ends_with(".llsp3") || name.ends_with(".lms") {
-                println!("        (potential nested archive)");
-            }
-        }
+fn describe_zip(contents: &[u8], indent: &str) {
+    let mut reader = zip::ZipArchive::new(Cursor::new(contents)).unwrap();
+    let subindent = format!("{indent}  ");
+    for i in 0..reader.len() {
+        let mut file = reader.by_index(i).unwrap();
+        let name = file.name();
+        println!("{indent}+ file name: {name}");
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
+        describe_file_contents(&contents, &subindent);
     }
 }
