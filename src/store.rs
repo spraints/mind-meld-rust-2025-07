@@ -4,16 +4,21 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use crate::config::StoreConfig;
+use crate::project::ProjectID;
 
 pub struct Store {
-    store_type: StoreType,
     path: PathBuf,
+    inst: StoreInstance,
 }
 
 const STORE_TYPE_GIT: &'static str = "git";
 
 enum StoreType {
     Git,
+}
+
+enum StoreInstance {
+    Git(git::GitStore),
 }
 
 fn store_type(t: &str) -> Result<StoreType, String> {
@@ -26,19 +31,30 @@ fn store_type(t: &str) -> Result<StoreType, String> {
 pub fn create(t: &str, path: PathBuf) -> Result<Store, Box<dyn Error>> {
     let path = std::path::absolute(path)?;
     let t = store_type(t)?;
-    t.create(&path)?;
-    Ok(Store {
-        store_type: t,
-        path: path,
-    })
+    let inst = t.create(&path)?;
+    Ok(Store { inst, path })
+}
+
+pub fn open(st: &StoreConfig) -> Result<Store, Box<dyn Error>> {
+    let path = std::path::absolute(&st.path)?;
+    let t = store_type(&st.store_type)?;
+    let inst = t.open(&path)?;
+    Ok(Store { inst, path })
 }
 
 impl StoreType {
-    fn create<P: AsRef<Path>>(&self, p: P) -> Result<(), Box<dyn Error>> {
+    fn create<P: AsRef<Path>>(&self, p: P) -> Result<StoreInstance, Box<dyn Error>> {
         match self {
-            StoreType::Git => git::open_or_create(p)?,
-        };
-        Ok(())
+            StoreType::Git => Ok(StoreInstance::Git(
+                git::open(&p).or_else(|_| git::create(&p))?,
+            )),
+        }
+    }
+
+    fn open<P: AsRef<Path>>(&self, p: P) -> Result<StoreInstance, Box<dyn Error>> {
+        match self {
+            StoreType::Git => Ok(StoreInstance::Git(git::open(p)?)),
+        }
     }
 
     fn as_str(&self) -> &'static str {
@@ -48,11 +64,25 @@ impl StoreType {
     }
 }
 
+impl StoreInstance {
+    fn store_type(&self) -> StoreType {
+        match self {
+            Self::Git(_) => StoreType::Git,
+        }
+    }
+}
+
+impl Store {
+    pub fn projects(&self) -> Result<Vec<ProjectID>, Box<dyn Error>> {
+        Err("todo: list projects".into())
+    }
+}
+
 impl Into<StoreConfig> for Store {
     fn into(self) -> StoreConfig {
         StoreConfig {
             path: self.path,
-            store_type: self.store_type.as_str().to_string(),
+            store_type: self.inst.store_type().as_str().to_string(),
         }
     }
 }

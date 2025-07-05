@@ -1,14 +1,12 @@
 use std::error::Error;
 use std::path::Path;
 
-pub fn open_or_create<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
-    match gix::discover(&p) {
-        Ok(r) => GitStore::new(r),
-        Err(_) => create(p),
-    }
+pub fn open<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
+    let r = gix::discover(&p)?;
+    GitStore::new(r)
 }
 
-fn create<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
+pub fn create<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
     let r = gix::init_bare(p)?;
     GitStore::new(r)
 }

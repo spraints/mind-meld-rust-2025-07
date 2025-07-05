@@ -1,10 +1,17 @@
 mod cli;
 mod config;
 mod dirs;
+mod program;
+mod project;
 mod store;
+
+use std::collections::HashMap;
+use std::rc::Rc;
 
 use clap::Parser;
 use config::Config;
+use project::ProjectID;
+use store::Store;
 
 fn main() {
     let cli = cli::Cli::parse();
@@ -53,8 +60,28 @@ fn cmd_status(config: Config) {
     }
 
     println!("Stores:");
+    let mut stores = Vec::new();
+    let mut projects: HashMap<ProjectID, Vec<Rc<Store>>> = HashMap::new();
     for st in &config.stores {
-        println!("  {st}");
+        match store::open(&st) {
+            Ok(store) => {
+                println!("  {st}");
+                let store = Rc::new(store);
+                stores.push(store.clone());
+                match store.projects() {
+                    Err(e) => println!("    error in repo: {e}"),
+                    Ok(sp) => {
+                        for proj in sp {
+                            projects
+                                .entry(proj)
+                                .and_modify(|e| e.push(store.clone()))
+                                .or_insert_with(|| vec![store.clone()]);
+                        }
+                    }
+                };
+            }
+            Err(e) => println!("  {st}: error: {e}"),
+        };
     }
     println!();
 
