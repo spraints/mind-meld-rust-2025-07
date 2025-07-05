@@ -41,14 +41,18 @@ fn zzz() {
 fn describe_file(path: &Path, indent: &str) {
     match std::fs::read(path) {
         Err(e) => println!("{indent}error: {e}"),
-        Ok(contents) => describe_file_contents(&contents, indent),
+        Ok(contents) => describe_file_contents(&contents, indent, false),
     };
 }
 
-fn describe_file_contents(contents: &[u8], indent: &str) {
+fn describe_file_contents(contents: &[u8], indent: &str, show_raw: bool) {
     if contents.is_empty() {
         println!("{indent}file type: empty");
         return;
+    }
+
+    if show_raw {
+        println!("{}", String::from_utf8_lossy(contents));
     }
 
     if contents.starts_with(b"PK") {
@@ -91,9 +95,14 @@ fn describe_zip(contents: &[u8], indent: &str) {
     for i in 0..reader.len() {
         let mut file = reader.by_index(i).unwrap();
         let name = file.name();
+        let show_raw = show_raw(name);
         println!("{indent}+ file name: {name}");
         let mut contents = Vec::new();
         file.read_to_end(&mut contents).unwrap();
-        describe_file_contents(&contents, &subindent);
+        describe_file_contents(&contents, &subindent, show_raw);
     }
+}
+
+fn show_raw(filename: &str) -> bool {
+    filename == "nothing" // Change this to a file you want to see the contents of.
 }
