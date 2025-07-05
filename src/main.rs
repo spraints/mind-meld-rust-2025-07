@@ -1,7 +1,6 @@
 mod cli;
 mod config;
 mod dirs;
-mod program;
 mod project;
 mod store;
 
@@ -53,7 +52,7 @@ fn cmd_status(config: Config) {
         println!();
     }
 
-    if config.stores.len() == 0 {
+    if config.stores.is_empty() {
         println!("No stores yet!");
         println!("Get started by running '{} store create'.", exe());
         return;
@@ -61,21 +60,21 @@ fn cmd_status(config: Config) {
 
     println!("Stores:");
     let mut stores = Vec::new();
-    let mut projects: HashMap<ProjectID, Vec<Rc<Store>>> = HashMap::new();
+    let mut projects: HashMap<ProjectID, (bool, Vec<Rc<Store>>)> = HashMap::new();
     for st in &config.stores {
         match store::open(&st) {
             Ok(store) => {
                 println!("  {st}");
                 let store = Rc::new(store);
                 stores.push(store.clone());
-                match store.projects() {
+                match store.project_ids() {
                     Err(e) => println!("    error in repo: {e}"),
                     Ok(sp) => {
                         for proj in sp {
                             projects
                                 .entry(proj)
-                                .and_modify(|e| e.push(store.clone()))
-                                .or_insert_with(|| vec![store.clone()]);
+                                .and_modify(|e| e.1.push(store.clone()))
+                                .or_insert_with(|| (false, vec![store.clone()]));
                         }
                     }
                 };
@@ -86,14 +85,31 @@ fn cmd_status(config: Config) {
     println!();
 
     println!(
-        "todo: get the tracked files from the stores. This will give me a list of (store, program, filename, contents)."
-    );
-    println!(
         "todo: get the tracked files from the filesystem. Given the distinct set of (program, filename), get contents for each."
     );
+    println!();
+
+    if projects.is_empty() {
+        println!("No projects yet!");
+        println!("Try creating a project in the Mindstorms or Spike Prime app next.");
+        return;
+    }
+
     println!(
         "todo: compare it all. Probably compare checksums? Or maybe it's easier just to walk through each part of the zip files."
     );
+    println!("Projects:");
+    for (proj, (exists_locally, stores)) in projects {
+        println!("  {proj}");
+        if exists_locally {
+            println!("    [CONTENT HASH] exists on disk");
+        } else {
+            println!("    (missing from disk)");
+        }
+        for st in stores {
+            println!("    [CONTENT HASH] {st}");
+        }
+    }
 }
 
 fn cmd_store(cmd: cli::StoreCommand, config: Config) {

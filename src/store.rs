@@ -1,6 +1,7 @@
 mod git;
 
 use std::error::Error;
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 use crate::config::StoreConfig;
@@ -70,11 +71,27 @@ impl StoreInstance {
             Self::Git(_) => StoreType::Git,
         }
     }
+
+    fn project_ids(&self) -> Result<Vec<ProjectID>, Box<dyn Error + 'static>> {
+        match self {
+            Self::Git(s) => s.project_ids(),
+        }
+    }
 }
 
 impl Store {
-    pub fn projects(&self) -> Result<Vec<ProjectID>, Box<dyn Error>> {
-        Err("todo: list projects".into())
+    pub fn project_ids(&self) -> Result<Vec<ProjectID>, Box<dyn Error>> {
+        self.inst.project_ids()
+    }
+}
+
+impl Display for Store {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let c = StoreConfig {
+            path: self.path.clone(),
+            store_type: self.inst.store_type().as_str().to_string(),
+        };
+        write!(f, "{c}")
     }
 }
 
