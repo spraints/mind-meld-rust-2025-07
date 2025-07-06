@@ -6,8 +6,10 @@ use std::{
 };
 
 #[path = "../config.rs"]
+#[allow(dead_code)]
 mod config;
 #[path = "../dirs.rs"]
+#[allow(dead_code)]
 mod dirs;
 
 fn main() {
