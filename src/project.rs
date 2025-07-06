@@ -1,4 +1,5 @@
-use std::{fmt::Display, path::PathBuf};
+use std::fmt::Display;
+use std::path::PathBuf;
 
 use crate::dirs::Dirs;
 
@@ -47,4 +48,24 @@ impl Display for ProjectID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}: {}", self.program, self.name)
     }
+}
+
+/// RawProject has the contents of a lms or llsp3 file.
+pub struct RawProject {
+    /// The entries within the zip file.
+    pub archive: RawArchive,
+}
+
+pub struct RawArchive {
+    pub entries: Vec<ArchiveEntry>,
+}
+
+pub struct ArchiveEntry {
+    pub name: String,
+    pub contents: ArchiveEntryContents,
+}
+
+pub enum ArchiveEntryContents {
+    Data(Vec<u8>),
+    NestedZip(RawArchive),
 }
