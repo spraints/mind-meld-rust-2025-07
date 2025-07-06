@@ -187,7 +187,7 @@ fn cmd_track(cmd: cli::TrackCommand, cfg: Config) {
             let mut error_count = 0;
             for (st, st_res) in store_results {
                 match st_res {
-                    Ok(()) => println!("  {st}: ok"),
+                    Ok(msg) => println!("  {st}: {msg}"),
                     Err(e) => {
                         error_count += 1;
                         println!("  {st}! error: {e}")

@@ -7,7 +7,7 @@ use crate::{dirs, store};
 
 pub struct TrackResult {
     pub id: project::ProjectID,
-    pub store_results: Vec<(StoreConfig, Result<(), Box<dyn Error>>)>,
+    pub store_results: Vec<(StoreConfig, Result<&'static str, Box<dyn Error>>)>,
 }
 
 pub fn track(

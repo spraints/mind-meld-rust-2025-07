@@ -51,7 +51,7 @@ impl GitStore {
     pub(crate) fn commit(
         &self,
         projects: &[(&ProjectID, &crate::project::RawProject)],
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<&'static str, Box<dyn Error>> {
         let head = self.r.head()?;
         let head_ref = head.referent_name().ok_or("invalid head ref")?;
 
@@ -83,14 +83,17 @@ impl GitStore {
         );
 
         // Create the commit
-        self.r.commit(
-            head_ref,
-            &commit_message,
-            new_root_tree_id,
-            parent_commit_ids,
-        )?;
-
-        Ok(())
+        if current_tree.id != new_root_tree_id {
+            self.r.commit(
+                head_ref,
+                &commit_message,
+                new_root_tree_id,
+                parent_commit_ids,
+            )?;
+            Ok("added")
+        } else {
+            Ok("already up to date")
+        }
     }
 
     fn path_for(id: &ProjectID) -> String {
