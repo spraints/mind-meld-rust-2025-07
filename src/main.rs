@@ -32,16 +32,16 @@ fn main() {
     }
 }
 
-fn cmd_status(cmd: cli::StatusCommand, config: Config) {
+fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     let cli::StatusCommand { show_untracked } = cmd;
-    let dirs = dirs::Dirs::new(&config).unwrap();
+    let dirs = dirs::Dirs::new(&cfg).unwrap();
 
     let mut any_overrides = false;
-    if let Some(p) = &config.mindstorms_path {
+    if let Some(p) = &cfg.mindstorms_path {
         println!("Mindstorms path override: {p:?}");
         any_overrides = true;
     }
-    if let Some(p) = &config.spike_path {
+    if let Some(p) = &cfg.spike_path {
         println!("Spike path override: {p:?}");
         any_overrides = true;
     }
@@ -49,7 +49,7 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
         println!();
     }
 
-    if config.stores.is_empty() {
+    if cfg.stores.is_empty() {
         println!("No stores yet!");
         println!("Get started by running '{} store create'.", exe());
         return;
@@ -58,7 +58,7 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
     println!("Stores:");
     let mut stores = Vec::new();
     let mut projects: HashMap<ProjectID, (bool, Vec<Rc<Store>>)> = HashMap::new();
-    for st in &config.stores {
+    for st in &cfg.stores {
         match store::open(st) {
             Ok(store) => {
                 println!("  {st}");
@@ -81,7 +81,7 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
     }
     println!();
 
-    for proj in app::all_projects(dirs).expect("unexpected error") {
+    for proj in app::all_projects(&dirs).expect("unexpected error") {
         projects
             .entry(proj)
             .and_modify(|e| e.0 = true)

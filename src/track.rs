@@ -22,7 +22,8 @@ pub fn track(
         name: file_name.to_string_lossy().to_string(),
     };
 
-    let archive = project::read(&id, dirs::Dirs::new(&cfg)?)?;
+    let dirs = dirs::Dirs::new(&cfg)?;
+    let archive = project::read(&id, &dirs)?;
 
     let update = vec![(&id, &archive)];
 

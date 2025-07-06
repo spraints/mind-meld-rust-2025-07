@@ -14,14 +14,14 @@ pub enum Program {
     Spike,
 }
 
-pub fn all_programs(dirs: Dirs) -> Vec<(Program, PathBuf)> {
+pub fn all_programs(dirs: &Dirs) -> Vec<(Program, &PathBuf)> {
     vec![
-        (Program::Mindstorms, dirs.mindstorms),
-        (Program::Spike, dirs.spike),
+        (Program::Mindstorms, &dirs.mindstorms),
+        (Program::Spike, &dirs.spike),
     ]
 }
 
-pub fn read(id: &ProjectID, dirs: Dirs) -> Result<RawProject, Box<dyn Error>> {
+pub fn read(id: &ProjectID, dirs: &Dirs) -> Result<RawProject, Box<dyn Error>> {
     let base_path = dir(id.program, dirs);
     let path = base_path.join(&id.name);
     let archive = ZipArchive::new(File::open(path)?)?;
@@ -30,10 +30,10 @@ pub fn read(id: &ProjectID, dirs: Dirs) -> Result<RawProject, Box<dyn Error>> {
     })
 }
 
-fn dir(prog: Program, dirs: Dirs) -> PathBuf {
+fn dir(prog: Program, dirs: &Dirs) -> &PathBuf {
     match prog {
-        Program::Mindstorms => dirs.mindstorms,
-        Program::Spike => dirs.spike,
+        Program::Mindstorms => &dirs.mindstorms,
+        Program::Spike => &dirs.spike,
     }
 }
 

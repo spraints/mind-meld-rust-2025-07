@@ -1,11 +1,11 @@
 use std::error::Error;
 use std::fs::read_dir;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::dirs::Dirs;
 use crate::project::*;
 
-pub fn all_projects(dirs: Dirs) -> Result<Vec<ProjectID>, Box<dyn Error>> {
+pub fn all_projects(dirs: &Dirs) -> Result<Vec<ProjectID>, Box<dyn Error>> {
     let mut res = Vec::new();
     for (prog, path) in all_programs(dirs) {
         let mut pp = projects(prog, path)?;
@@ -14,7 +14,7 @@ pub fn all_projects(dirs: Dirs) -> Result<Vec<ProjectID>, Box<dyn Error>> {
     Ok(res)
 }
 
-fn projects(prog: Program, path: PathBuf) -> Result<Vec<ProjectID>, Box<dyn Error>> {
+fn projects<P: AsRef<Path>>(prog: Program, path: P) -> Result<Vec<ProjectID>, Box<dyn Error>> {
     let mut res = Vec::new();
     for entry in read_dir(&path)? {
         let entry = entry?;
