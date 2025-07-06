@@ -96,11 +96,15 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
 
     println!("Projects:");
     let mut untracked_count = 0;
-    for (proj, (exists_locally, stores)) in projects {
+    for (proj, (_, stores)) in projects {
         if !stores.is_empty() {
-            // todo: read local file with app::read_project(&proj).
-            // todo: read stored file with stores[i].read_project(&proj).
-            println!("  {proj}: todo: compare stores with local (local exists = {exists_locally})");
+            match project::read(&proj, &dirs) {
+                Err(e) => println!("  {proj}! error: {e}"),
+                Ok(_raw) => println!(
+                    // todo: read stored file with stores[i].read_project(&proj).
+                    "  {proj}:\n    todo: compare stores with local"
+                ),
+            };
             continue;
         }
 
