@@ -102,31 +102,31 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
         return;
     }
 
-    println!(
-        "todo: compare it all. Probably compare checksums? Or maybe it's easier just to walk through each part of the zip files."
-    );
-    println!();
-
     println!("Projects:");
     let mut untracked_count = 0;
     for (proj, (exists_locally, stores)) in projects {
-        if stores.is_empty() && !show_untracked {
-            untracked_count += 1;
+        if !stores.is_empty() {
+            // todo: read local file with app::read_project(&proj).
+            // todo: read stored file with stores[i].read_project(&proj).
+            println!(
+                "    {proj}: todo: compare stores with local (local exists = {exists_locally})"
+            );
             continue;
         }
 
-        println!("  {proj}");
-        if exists_locally {
-            println!("    [CONTENT HASH] exists on disk");
-        } else {
-            println!("    (missing from disk)");
-        }
-        for st in stores {
-            println!("    [CONTENT HASH] {st}");
+        untracked_count += 1;
+        if show_untracked {
+            println!("    {proj}: untracked");
+            println!(
+                "       track with: {} track --{} {:?}",
+                exe(),
+                proj.program,
+                proj.name
+            );
         }
     }
 
-    if untracked_count > 0 {
+    if untracked_count > 0 && !show_untracked {
         println!(
             "  untracked: {untracked_count} (Run '{} status --untracked' to list them.)",
             exe()
