@@ -68,8 +68,10 @@ pub struct RemoveStoreArgs {
 pub struct TrackCommand {
     /// Track a spike file
     #[arg(long)]
-    pub spike: Option<String>,
+    pub spike: bool,
     /// Track a mindstorms file
     #[arg(long)]
-    pub mindstorms: Option<String>,
+    pub mindstorms: bool,
+
+    pub file_name: PathBuf,
 }

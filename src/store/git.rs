@@ -45,6 +45,13 @@ impl GitStore {
         }
         Ok(res)
     }
+
+    pub(crate) fn commit(
+        &self,
+        projects: Vec<(&ProjectID, &crate::project::RawProject)>,
+    ) -> Result<(), Box<dyn Error + 'static>> {
+        todo!()
+    }
 }
 
 fn validate(r: &gix::Repository) -> Result<(), Box<dyn Error>> {

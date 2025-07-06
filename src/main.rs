@@ -4,6 +4,7 @@ mod config;
 mod dirs;
 mod project;
 mod store;
+mod track;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -20,17 +21,7 @@ fn main() {
         None => cmd_status(Default::default(), config),
         Some(cli::Commands::Status(status_cmd)) => cmd_status(status_cmd, config),
         Some(cli::Commands::Store(store_cmd)) => cmd_store(store_cmd, config),
-        Some(cli::Commands::Track(track_cmd)) => {
-            if let Some(spike) = &track_cmd.spike {
-                println!("Track spike file: {}", spike);
-            }
-            if let Some(mindstorms) = &track_cmd.mindstorms {
-                println!("Track mindstorms file: {}", mindstorms);
-            }
-            if track_cmd.spike.is_none() && track_cmd.mindstorms.is_none() {
-                println!("No file specified to track.");
-            }
-        }
+        Some(cli::Commands::Track(track_cmd)) => cmd_track(track_cmd, config),
         Some(cli::Commands::Snapshot) => {
             println!("Snapshot changes (not yet implemented)");
         }
@@ -170,6 +161,22 @@ fn cmd_store_remove(args: cli::RemoveStoreArgs, mut config: Config) {
     config.stores = new_stores;
     config.store().unwrap();
     println!("Stores removed: {removed}");
+}
+
+fn cmd_track(cmd: cli::TrackCommand, cfg: Config) {
+    let cli::TrackCommand {
+        spike,
+        mindstorms,
+        file_name,
+    } = cmd;
+    match (spike, mindstorms) {
+        (true, false) => track::track(cfg, project::Program::Spike, file_name),
+        (false, true) => track::track(cfg, project::Program::Mindstorms, file_name),
+        _ => {
+            eprintln!("Exactly one of --spike or --mindstoms must be specified");
+            std::process::exit(1);
+        }
+    };
 }
 
 fn exe() -> String {

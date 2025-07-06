@@ -5,7 +5,7 @@ use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 use crate::config::StoreConfig;
-use crate::project::ProjectID;
+use crate::project::{self, ProjectID};
 
 pub struct Store {
     path: PathBuf,
@@ -77,11 +77,27 @@ impl StoreInstance {
             Self::Git(s) => s.project_ids(),
         }
     }
+
+    fn commit(
+        &self,
+        projects: Vec<(&ProjectID, &project::RawProject)>,
+    ) -> Result<(), Box<dyn Error>> {
+        match self {
+            Self::Git(s) => s.commit(projects),
+        }
+    }
 }
 
 impl Store {
     pub fn project_ids(&self) -> Result<Vec<ProjectID>, Box<dyn Error>> {
         self.inst.project_ids()
+    }
+
+    pub(crate) fn commit(
+        &self,
+        projects: Vec<(&ProjectID, &project::RawProject)>,
+    ) -> Result<(), Box<dyn Error>> {
+        self.inst.commit(projects)
     }
 }
 
