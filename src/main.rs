@@ -24,10 +24,10 @@ fn main() {
         Some(cli::Commands::Store(store_cmd)) => cmd_store(store_cmd, config),
         Some(cli::Commands::Track(track_cmd)) => cmd_track(track_cmd, config),
         Some(cli::Commands::Snapshot) => {
-            println!("Snapshot changes (not yet implemented)");
+            println!("todo: Snapshot changes (not yet implemented)");
         }
         Some(cli::Commands::Watch) => {
-            println!("Watch for changes (not yet implemented)");
+            println!("todo: Watch for changes (not yet implemented)");
         }
     }
 }
