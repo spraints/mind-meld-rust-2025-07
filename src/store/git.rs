@@ -1,7 +1,9 @@
 use std::error::Error;
 use std::path::Path;
 
-use crate::project::{program_git, ProjectID};
+use gix::{object::tree, objs::tree::EntryKind, ObjectId};
+
+use crate::project::{program_git, ArchiveEntry, ProjectID, RawArchive, RawProject};
 
 pub fn open<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
     let r = gix::discover(&p)?;
@@ -48,9 +50,92 @@ impl GitStore {
 
     pub(crate) fn commit(
         &self,
-        projects: Vec<(&ProjectID, &crate::project::RawProject)>,
-    ) -> Result<(), Box<dyn Error + 'static>> {
-        todo!()
+        projects: &[(&ProjectID, &crate::project::RawProject)],
+    ) -> Result<(), Box<dyn Error>> {
+        let head = self.r.head()?;
+        let head_ref = head.referent_name().ok_or("invalid head ref")?;
+
+        // Get the current tree (or empty tree if unborn)
+        let (current_tree, parent_commit_ids) = if head.is_unborn() {
+            (self.r.empty_tree(), Vec::new())
+        } else {
+            (
+                self.r.head_commit()?.tree()?,
+                vec![self.r.head_commit()?.id],
+            )
+        };
+
+        // Create a new tree with the project changes
+        let mut new_root_tree = tree::Editor::new(&current_tree)?;
+        for (id, data) in projects {
+            let proj_tree = self.create_proj_tree(data)?;
+            new_root_tree.upsert(Self::path_for(id), EntryKind::Tree, proj_tree)?;
+        }
+        let new_root_tree_id = new_root_tree.write()?;
+
+        let commit_message = format!(
+            "Start tracking {}",
+            projects
+                .iter()
+                .map(|(id, _)| format!("{id}"))
+                .collect::<Vec<String>>()
+                .join(", ")
+        );
+
+        // Create the commit
+        self.r.commit(
+            head_ref,
+            &commit_message,
+            new_root_tree_id,
+            parent_commit_ids,
+        )?;
+
+        Ok(())
+    }
+
+    fn path_for(id: &ProjectID) -> String {
+        let program = id.program;
+        let name = &id.name;
+        format!("{program}/{name}")
+    }
+
+    fn create_proj_tree(&self, proj: &RawProject) -> Result<ObjectId, Box<dyn Error>> {
+        let mut new_tree = tree::Editor::new(&self.r.empty_tree())?;
+        self.append_archive(&mut new_tree, &proj.archive, "")?;
+        Ok(new_tree.write()?.detach())
+    }
+
+    fn append_archive(
+        &self,
+        tree: &mut tree::Editor,
+        arch: &RawArchive,
+        prefix: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        for e in &arch.entries {
+            self.append_archive_entry(tree, e, prefix)?;
+        }
+        Ok(())
+    }
+
+    fn append_archive_entry(
+        &self,
+        tree: &mut tree::Editor<'_>,
+        e: &ArchiveEntry,
+        prefix: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let name = &e.name;
+        use crate::project::ArchiveEntryContents::*;
+        match &e.contents {
+            Data(data) => {
+                let blob_id = self.r.write_blob(&data)?;
+                tree.upsert(format!("{prefix}{name}"), EntryKind::Blob, blob_id)?;
+            }
+            Archive(arch) => {
+                let subdir = format!("{prefix}{name}/");
+                self.append_archive(tree, arch, &subdir)?;
+            }
+        };
+        Ok(())
     }
 }
 

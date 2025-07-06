@@ -7,6 +7,7 @@ mod store;
 mod track;
 
 use std::collections::HashMap;
+use std::process::exit;
 use std::rc::Rc;
 
 use clap::Parser;
@@ -99,17 +100,15 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
         if !stores.is_empty() {
             // todo: read local file with app::read_project(&proj).
             // todo: read stored file with stores[i].read_project(&proj).
-            println!(
-                "    {proj}: todo: compare stores with local (local exists = {exists_locally})"
-            );
+            println!("  {proj}: todo: compare stores with local (local exists = {exists_locally})");
             continue;
         }
 
         untracked_count += 1;
         if show_untracked {
-            println!("    {proj}: untracked");
+            println!("  (untracked) {proj}");
             println!(
-                "       track with: {} track --{} {:?}",
+                "     track with: {} track --{} {:?}",
                 exe(),
                 proj.program,
                 proj.name
@@ -169,12 +168,35 @@ fn cmd_track(cmd: cli::TrackCommand, cfg: Config) {
         mindstorms,
         file_name,
     } = cmd;
-    match (spike, mindstorms) {
+    let res = match (spike, mindstorms) {
         (true, false) => track::track(cfg, project::Program::Spike, file_name),
         (false, true) => track::track(cfg, project::Program::Mindstorms, file_name),
         _ => {
             eprintln!("Exactly one of --spike or --mindstoms must be specified");
-            std::process::exit(1);
+            exit(1);
+        }
+    };
+    match res {
+        Err(e) => {
+            eprintln!("{e}");
+            exit(1);
+        }
+        Ok(res) => {
+            let track::TrackResult { id, store_results } = res;
+            println!("Now tracking {id}");
+            let mut error_count = 0;
+            for (st, st_res) in store_results {
+                match st_res {
+                    Ok(()) => println!("  {st}: ok"),
+                    Err(e) => {
+                        error_count += 1;
+                        println!("  {st}! error: {e}")
+                    }
+                };
+            }
+            if error_count > 0 {
+                exit(1);
+            }
         }
     };
 }
