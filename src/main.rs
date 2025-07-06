@@ -59,7 +59,7 @@ fn cmd_status(cmd: cli::StatusCommand, config: Config) {
     let mut stores = Vec::new();
     let mut projects: HashMap<ProjectID, (bool, Vec<Rc<Store>>)> = HashMap::new();
     for st in &config.stores {
-        match store::open(&st) {
+        match store::open(st) {
             Ok(store) => {
                 println!("  {st}");
                 let store = Rc::new(store);

@@ -130,7 +130,7 @@ impl GitStore {
         use crate::project::ArchiveEntryContents::*;
         match &e.contents {
             Data(data) => {
-                let blob_id = self.r.write_blob(&data)?;
+                let blob_id = self.r.write_blob(data)?;
                 tree.upsert(format!("{prefix}{name}"), EntryKind::Blob, blob_id)?;
             }
             Archive(arch) => {

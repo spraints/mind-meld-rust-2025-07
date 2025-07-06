@@ -57,7 +57,7 @@ fn describe_file_contents(contents: &[u8], indent: &str, show_raw: bool) {
 
     if contents.starts_with(b"PK") {
         println!("{indent}file type: zip");
-        describe_zip(&contents, indent);
+        describe_zip(contents, indent);
         return;
     }
 
@@ -75,7 +75,7 @@ fn describe_file_contents(contents: &[u8], indent: &str, show_raw: bool) {
         return;
     }
 
-    if let Ok(_) = serde_json::from_slice::<serde_json::Value>(contents) {
+    if serde_json::from_slice::<serde_json::Value>(contents).is_ok() {
         println!("{indent}file type: json");
         return;
     }

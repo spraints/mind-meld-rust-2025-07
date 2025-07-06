@@ -37,8 +37,8 @@ fn dir(prog: Program, dirs: Dirs) -> PathBuf {
     }
 }
 
-const PROGRAM_MINDSTORMS: &'static str = "mindstorms";
-const PROGRAM_SPIKE: &'static str = "spike";
+const PROGRAM_MINDSTORMS: &str = "mindstorms";
+const PROGRAM_SPIKE: &str = "spike";
 
 pub fn program_git(name: &gix::bstr::BStr) -> Result<Program, String> {
     if name == PROGRAM_MINDSTORMS {

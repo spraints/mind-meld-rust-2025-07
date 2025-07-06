@@ -12,7 +12,7 @@ pub struct Store {
     inst: StoreInstance,
 }
 
-const STORE_TYPE_GIT: &'static str = "git";
+const STORE_TYPE_GIT: &str = "git";
 
 enum StoreType {
     Git,
@@ -111,11 +111,11 @@ impl Display for Store {
     }
 }
 
-impl Into<StoreConfig> for Store {
-    fn into(self) -> StoreConfig {
+impl From<Store> for StoreConfig {
+    fn from(val: Store) -> Self {
         StoreConfig {
-            path: self.path,
-            store_type: self.inst.store_type().as_str().to_string(),
+            path: val.path,
+            store_type: val.inst.store_type().as_str().to_string(),
         }
     }
 }
