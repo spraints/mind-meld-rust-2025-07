@@ -95,36 +95,41 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     }
 
     println!("Projects:");
-    let mut untracked_count = 0;
+    let mut untracked = Vec::new();
     for (proj, (_, stores)) in projects {
-        if !stores.is_empty() {
-            match project::read(&proj, &dirs) {
-                Err(e) => println!("  {proj}! error: {e}"),
-                Ok(_raw) => println!(
-                    // todo: read stored file with stores[i].read_project(&proj).
-                    "  {proj}:\n    todo: compare stores with local"
-                ),
-            };
-            continue;
-        }
-
-        untracked_count += 1;
-        if show_untracked {
-            println!("  (untracked) {proj}");
-            println!(
-                "     track with: {} track --{} {:?}",
-                exe(),
-                proj.program,
-                proj.name
-            );
-        }
+        match stores.is_empty() {
+            true => untracked.push(proj),
+            false => {
+                match project::read(&proj, &dirs) {
+                    Err(e) => println!("  {proj}! error: {e}"),
+                    Ok(_raw) => println!(
+                        // todo: read stored file with stores[i].read_project(&proj).
+                        "  {proj}:\n    todo: compare stores with local"
+                    ),
+                }
+            }
+        };
     }
 
-    if untracked_count > 0 && !show_untracked {
-        println!(
-            "  untracked: {untracked_count} (Run '{} status --untracked' to list them.)",
-            exe()
-        );
+    if untracked.len() > 0 {
+        println!();
+        if show_untracked {
+            for proj in untracked {
+                println!("  (untracked) {proj}");
+                println!(
+                    "     track with: {} track --{} {:?}",
+                    exe(),
+                    proj.program,
+                    proj.name
+                );
+            }
+        } else {
+            println!(
+                "  untracked: {} (Run '{} status --untracked' to list them.)",
+                untracked.len(),
+                exe()
+            );
+        }
     }
 }
 
