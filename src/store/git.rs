@@ -1,9 +1,11 @@
 use std::error::Error;
 use std::path::Path;
 
-use gix::{object::tree, objs::tree::EntryKind, ObjectId};
+use gix::{object::tree, objs::tree::EntryKind, ObjectId, Tree};
 
-use crate::project::{program_git, ArchiveEntry, ProjectID, RawArchive, RawProject};
+use crate::project::{
+    program_git, ArchiveEntry, ArchiveEntryContents, ProjectID, RawArchive, RawProject,
+};
 
 pub fn open<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
     let r = gix::discover(&p)?;
@@ -25,7 +27,7 @@ impl GitStore {
         Ok(Self { r })
     }
 
-    pub fn project_ids(&self) -> Result<Vec<crate::project::ProjectID>, Box<dyn Error + 'static>> {
+    pub fn project_ids(&self) -> Result<Vec<ProjectID>, Box<dyn Error + 'static>> {
         if self.r.head()?.is_unborn() {
             return Ok(Vec::new());
         }
@@ -48,9 +50,50 @@ impl GitStore {
         Ok(res)
     }
 
+    pub(crate) fn read_project(
+        &self,
+        id: &ProjectID,
+    ) -> Result<Option<RawProject>, Box<dyn Error>> {
+        match self.r.head_commit() {
+            Err(_) => Ok(None),
+            Ok(c) => {
+                let tree = c.tree()?;
+                match c.tree()?.lookup_entry_by_path(Self::path_for(id))? {
+                    None => Ok(None),
+                    Some(e) => Ok(Some(RawProject {
+                        archive: self.tree_to_archive(e.object()?.try_into_tree()?)?,
+                    })),
+                }
+            }
+        }
+    }
+
+    fn tree_to_archive(&self, tree: Tree) -> Result<RawArchive, Box<dyn Error>> {
+        let entries = tree
+            .iter()
+            .map(|e| self.tree_entry_to_archive_entry(e))
+            .collect::<Result<Vec<ArchiveEntry>, Box<dyn Error>>>()?;
+        Ok(RawArchive { entries })
+    }
+
+    fn tree_entry_to_archive_entry(
+        &self,
+        e: Result<tree::EntryRef<'_, '_>, gix::objs::decode::Error>,
+    ) -> Result<ArchiveEntry, Box<dyn Error>> {
+        let e = e?;
+        let name = e.filename().to_string();
+        let contents = match e.mode().is_tree() {
+            true => {
+                ArchiveEntryContents::Archive(self.tree_to_archive(e.object()?.try_into_tree()?)?)
+            }
+            false => ArchiveEntryContents::Data(e.object()?.try_into_blob()?.data.clone()),
+        };
+        Ok(ArchiveEntry { name, contents })
+    }
+
     pub(crate) fn commit(
         &self,
-        projects: &[(&ProjectID, &crate::project::RawProject)],
+        projects: &[(&ProjectID, &RawProject)],
     ) -> Result<&'static str, Box<dyn Error>> {
         let head = self.r.head()?;
         let head_ref = head.referent_name().ok_or("invalid head ref")?;
@@ -127,7 +170,7 @@ impl GitStore {
         prefix: &str,
     ) -> Result<(), Box<dyn Error>> {
         let name = &e.name;
-        use crate::project::ArchiveEntryContents::*;
+        use ArchiveEntryContents::*;
         match &e.contents {
             Data(data) => {
                 let blob_id = self.r.write_blob(data)?;

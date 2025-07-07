@@ -86,11 +86,27 @@ impl StoreInstance {
             Self::Git(s) => s.commit(projects),
         }
     }
+
+    fn read_project(
+        &self,
+        id: &ProjectID,
+    ) -> Result<Option<project::RawProject>, Box<dyn Error + 'static>> {
+        match self {
+            Self::Git(s) => s.read_project(id),
+        }
+    }
 }
 
 impl Store {
     pub fn project_ids(&self) -> Result<Vec<ProjectID>, Box<dyn Error>> {
         self.inst.project_ids()
+    }
+
+    pub fn read_project(
+        &self,
+        id: &ProjectID,
+    ) -> Result<Option<project::RawProject>, Box<dyn Error>> {
+        self.inst.read_project(id)
     }
 
     pub(crate) fn commit(

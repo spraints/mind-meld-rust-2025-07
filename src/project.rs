@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::{Read, Seek};
 use std::path::PathBuf;
 
+use sha2::{digest::Update, Digest, Sha256};
 use zip::ZipArchive;
 
 use crate::dirs::Dirs;
@@ -77,9 +78,18 @@ pub struct RawProject {
     pub archive: RawArchive,
 }
 
+impl RawProject {
+    pub(crate) fn hash(&self) -> Vec<u8> {
+        let mut hasher = Sha256::new();
+        self.archive.hash(&mut hasher);
+        hasher.finalize().to_vec()
+    }
+}
+
 pub struct RawArchive {
     pub entries: Vec<ArchiveEntry>,
 }
+
 impl RawArchive {
     fn read<R: Read + Seek>(mut archive: ZipArchive<R>) -> Result<Self, Box<dyn Error>> {
         let mut entries = Vec::new();
@@ -90,6 +100,16 @@ impl RawArchive {
             entries.push(ArchiveEntry::new(file.name(), buf)?);
         }
         Ok(Self { entries })
+    }
+
+    fn hash<H: Update>(&self, hasher: &mut H) {
+        hasher.update(format!("entries={}\n", self.entries.len()).as_bytes());
+        let mut entries: Vec<&ArchiveEntry> = self.entries.iter().collect();
+        entries.sort_by_key(|e| &e.name);
+        for e in entries {
+            hasher.update(format!("name={}\n", e.name).as_bytes());
+            e.contents.hash(hasher);
+        }
     }
 }
 
@@ -115,4 +135,19 @@ impl ArchiveEntry {
 pub enum ArchiveEntryContents {
     Data(Vec<u8>),
     Archive(RawArchive),
+}
+
+impl ArchiveEntryContents {
+    fn hash<H: Update>(&self, hasher: &mut H) {
+        match self {
+            Self::Data(data) => {
+                hasher.update(format!("len={}\n", data.len()).as_bytes());
+                hasher.update(&data);
+            }
+            Self::Archive(arch) => {
+                hasher.update(b"archive\n");
+                arch.hash(hasher);
+            }
+        }
+    }
 }

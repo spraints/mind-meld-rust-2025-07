@@ -3,6 +3,7 @@ mod cli;
 mod config;
 mod dirs;
 mod project;
+mod status;
 mod store;
 mod track;
 
@@ -56,14 +57,14 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     }
 
     println!("Stores:");
-    let mut stores = Vec::new();
+    let mut all_stores = Vec::new();
     let mut projects: HashMap<ProjectID, (bool, Vec<Rc<Store>>)> = HashMap::new();
     for st in &cfg.stores {
         match store::open(st) {
             Ok(store) => {
                 println!("  {st}");
                 let store = Rc::new(store);
-                stores.push(store.clone());
+                all_stores.push(store.clone());
                 match store.project_ids() {
                     Err(e) => println!("    error in repo: {e}"),
                     Ok(sp) => {
@@ -95,19 +96,29 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     }
 
     println!("Projects:");
+    let all_stores_count = all_stores.len();
     let mut untracked = Vec::new();
-    for (proj, (_, stores)) in projects {
-        match stores.is_empty() {
+    for (proj, (_, proj_stores)) in projects {
+        match proj_stores.is_empty() {
             true => untracked.push(proj),
-            false => {
-                match project::read(&proj, &dirs) {
-                    Err(e) => println!("  {proj}! error: {e}"),
-                    Ok(_raw) => println!(
-                        // todo: read stored file with stores[i].read_project(&proj).
-                        "  {proj}:\n    todo: compare stores with local"
-                    ),
+            false => match status::get_status(&proj, &all_stores, &dirs) {
+                Err(e) => println!("  {proj}! error: {e}"),
+                Ok(status::Status::NoDifferences) => println!("  {proj}: up to date"),
+                Ok(status::Status::LocalMissing) => {
+                    println!("  {proj}: local copy has been deleted")
                 }
-            }
+                Ok(status::Status::Differences(out_of_date_stores)) => {
+                    let store_list_count = out_of_date_stores.len();
+                    let store_list: Vec<String> = out_of_date_stores
+                        .iter()
+                        .map(|st| format!("{st}"))
+                        .collect();
+                    let store_list = store_list.join("; ");
+                    println!(
+                        "  {proj}: {store_list_count}/{all_stores_count} stores need sync: {store_list}"
+                    );
+                }
+            },
         };
     }
 
