@@ -26,8 +26,8 @@ pub enum Commands {
     Untrack(UntrackCommand),
     /// Commit changes
     Commit,
-    /// Continuously add changes
-    Watch,
+    /// Automatically commit changes as they happen
+    AutoCommit,
 }
 
 #[derive(Args, Debug, Default)]

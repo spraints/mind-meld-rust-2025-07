@@ -27,8 +27,8 @@ fn main() {
         Some(cli::Commands::Track(track_cmd)) => cmd_track(track_cmd, config),
         Some(cli::Commands::Untrack(untrack_cmd)) => cmd_untrack(untrack_cmd, config),
         Some(cli::Commands::Commit) => cmd_commit(config),
-        Some(cli::Commands::Watch) => {
-            println!("todo: Watch for changes (not yet implemented)");
+        Some(cli::Commands::AutoCommit) => {
+            println!("todo: Auto-commit for changes (not yet implemented)");
         }
     }
 }
