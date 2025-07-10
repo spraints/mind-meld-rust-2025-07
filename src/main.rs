@@ -300,27 +300,17 @@ fn cmd_commit(cfg: Config) {
                 projects_to_commit.push((proj_id, raw_project));
             }
             Ok(None) => {
-                println!("Error reading project {proj_id}: file does not exist");
+                println!("Project {proj_id} does not exist.");
                 println!("  To stop tracking it, run:");
-                println!("    {} untrack --{} {:?}", exe(), proj_id.program, proj_id.name);
+                println!(
+                    "    {} untrack --{} {:?}",
+                    exe(),
+                    proj_id.program,
+                    proj_id.name
+                );
             }
             Err(e) => {
-                if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
-                    if io_error.kind() == std::io::ErrorKind::NotFound {
-                        println!("Error reading project {proj_id}: {e}");
-                        println!("  To stop tracking it, run:");
-                        println!(
-                            "    {} untrack --{} {:?}",
-                            exe(),
-                            proj_id.program,
-                            proj_id.name
-                        );
-                    } else {
-                        println!("Error reading project {proj_id}: {e}");
-                    }
-                } else {
-                    println!("Error reading project {proj_id}: {e}");
-                }
+                println!("Error reading project {proj_id}: {e}");
             }
         }
     }

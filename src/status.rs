@@ -21,14 +21,7 @@ pub fn get_status(
     let local = match project::read(proj, dirs) {
         Ok(Some(project)) => project,
         Ok(None) => return Ok(Status::LocalMissing),
-        Err(e) => {
-            if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
-                if io_error.kind() == std::io::ErrorKind::NotFound {
-                    return Ok(Status::LocalMissing);
-                }
-            }
-            return Err(e);
-        }
+        Err(e) => return Err(e),
     };
     let local_hash = local.hash();
 
