@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{Read, Seek};
 use std::path::PathBuf;
 
-use sha2::{digest::Update, Digest, Sha256};
+use sha2::{Digest, Sha256, digest::Update};
 use zip::ZipArchive;
 
 use crate::dirs::Dirs;
@@ -142,7 +142,7 @@ impl ArchiveEntryContents {
         match self {
             Self::Data(data) => {
                 hasher.update(format!("len={}\n", data.len()).as_bytes());
-                hasher.update(&data);
+                hasher.update(data);
             }
             Self::Archive(arch) => {
                 hasher.update(b"archive\n");

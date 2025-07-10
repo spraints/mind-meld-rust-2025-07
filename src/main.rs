@@ -81,9 +81,7 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     println!();
 
     for proj in app::all_projects(&dirs).expect("unexpected error") {
-        projects
-            .entry(proj)
-            .or_insert(Vec::new());
+        projects.entry(proj).or_default();
     }
 
     if projects.is_empty() {
@@ -119,7 +117,7 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
         };
     }
 
-    if untracked.len() > 0 {
+    if !untracked.is_empty() {
         println!();
         if show_untracked {
             for proj in untracked {
