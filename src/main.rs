@@ -16,6 +16,9 @@ use clap::Parser;
 use config::Config;
 use project::ProjectID;
 use store::Store;
+use notify::{Watcher, RecursiveMode, watcher, DebouncedEvent};
+use std::sync::mpsc::channel;
+use std::time::Duration;
 
 fn main() {
     let cli = cli::Cli::parse();
@@ -28,7 +31,7 @@ fn main() {
         Some(cli::Commands::Untrack(untrack_cmd)) => cmd_untrack(untrack_cmd, config),
         Some(cli::Commands::Commit) => cmd_commit(config),
         Some(cli::Commands::AutoCommit) => {
-            println!("todo: Auto-commit for changes (not yet implemented)");
+            cmd_auto_commit(config);
         }
     }
 }
@@ -358,6 +361,107 @@ fn cmd_commit(cfg: Config) {
         exit(1);
     } else {
         println!("Successfully committed all projects to all stores");
+    }
+}
+
+fn cmd_auto_commit(cfg: Config) {
+    let dirs = dirs::Dirs::new(&cfg).unwrap();
+
+    if cfg.stores.is_empty() {
+        println!("No stores yet!");
+        println!("Get started by running '{} store create'.", exe());
+        return;
+    }
+
+    // Find all tracked projects
+    let mut tracked_projects = HashSet::new();
+    for st in &cfg.stores {
+        match store::open(st) {
+            Ok(store) => {
+                match store.project_ids() {
+                    Err(e) => println!("Error reading store {st}: {e}"),
+                    Ok(project_ids) => {
+                        for proj_id in project_ids {
+                            tracked_projects.insert(proj_id);
+                        }
+                    }
+                };
+            }
+            Err(e) => println!("Error opening store {st}: {e}"),
+        };
+    }
+
+    if tracked_projects.is_empty() {
+        println!("No tracked projects found!");
+        println!("Track a project first with '{} track'.", exe());
+        return;
+    }
+
+    // Build a map of project id to file path
+    let mut project_paths = Vec::new();
+    for proj_id in &tracked_projects {
+        let base_path = match proj_id.program {
+            project::Program::Mindstorms => &dirs.mindstorms,
+            project::Program::Spike => &dirs.spike,
+        };
+        let path = base_path.join(&proj_id.name);
+        project_paths.push((proj_id.clone(), path));
+    }
+
+    // Set up file watcher
+    let (tx, rx) = channel();
+    let mut watcher = watcher(tx, Duration::from_secs(2)).unwrap();
+    for (_proj_id, path) in &project_paths {
+        if let Err(e) = watcher.watch(path, RecursiveMode::NonRecursive) {
+            println!("Failed to watch {:?}: {e}", path);
+        }
+    }
+    println!("Watching for changes to tracked files...");
+
+    loop {
+        match rx.recv() {
+            Ok(DebouncedEvent::Write(path)) | Ok(DebouncedEvent::Create(path)) => {
+                // Find which project this path matches
+                if let Some((proj_id, _)) = project_paths.iter().find(|(_, p)| **p == path) {
+                    // Read the project
+                    match project::read(proj_id, &dirs) {
+                        Ok(Some(raw_project)) => {
+                            // Commit to all stores
+                            let mut error_count = 0;
+                            for st in &cfg.stores {
+                                match store::open(st) {
+                                    Ok(store) => {
+                                        let project_refs = vec![(proj_id, &raw_project)];
+                                        match store.commit(&project_refs) {
+                                            Ok(_) => println!("updated {}", path.display()),
+                                            Err(e) => {
+                                                error_count += 1;
+                                                println!("  {st}! error: {e}")
+                                            }
+                                        };
+                                    }
+                                    Err(e) => {
+                                        error_count += 1;
+                                        println!("  {st}! error opening store: {e}")
+                                    }
+                                };
+                            }
+                            if error_count > 0 {
+                                println!("Completed with {} errors", error_count);
+                            }
+                        }
+                        Ok(None) => {
+                            println!("Project {proj_id} does not exist.");
+                        }
+                        Err(e) => {
+                            println!("Error reading project {proj_id}: {e}");
+                        }
+                    }
+                }
+            }
+            Ok(_) => {},
+            Err(e) => println!("watch error: {e}"),
+        }
     }
 }
 
