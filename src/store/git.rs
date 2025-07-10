@@ -56,15 +56,12 @@ impl GitStore {
     ) -> Result<Option<RawProject>, Box<dyn Error>> {
         match self.r.head_commit() {
             Err(_) => Ok(None),
-            Ok(c) => {
-                let tree = c.tree()?;
-                match c.tree()?.lookup_entry_by_path(Self::path_for(id))? {
-                    None => Ok(None),
-                    Some(e) => Ok(Some(RawProject {
-                        archive: self.tree_to_archive(e.object()?.try_into_tree()?)?,
-                    })),
-                }
-            }
+            Ok(c) => match c.tree()?.lookup_entry_by_path(Self::path_for(id))? {
+                None => Ok(None),
+                Some(e) => Ok(Some(RawProject {
+                    archive: self.tree_to_archive(e.object()?.try_into_tree()?)?,
+                })),
+            },
         }
     }
 
