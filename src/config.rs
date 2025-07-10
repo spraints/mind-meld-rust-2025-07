@@ -106,7 +106,7 @@ mod tests {
         "#;
         let config: Config = Config::load_from_string(toml).unwrap();
         assert_eq!(config.stores.len(), 1);
-        assert_eq!(config.stores[0].path, "p");
+        assert_eq!(config.stores[0].path, PathBuf::from("p"));
         assert_eq!(config.stores[0].store_type, "git");
     }
 
@@ -122,9 +122,9 @@ mod tests {
         "#;
         let config: Config = Config::load_from_string(toml).unwrap();
         assert_eq!(config.stores.len(), 2);
-        assert_eq!(config.stores[0].path, "path1");
+        assert_eq!(config.stores[0].path, PathBuf::from("path1"));
         assert_eq!(config.stores[0].store_type, "git");
-        assert_eq!(config.stores[1].path, "path2");
+        assert_eq!(config.stores[1].path, PathBuf::from("path2"));
         assert_eq!(config.stores[1].store_type, "git");
     }
 
@@ -137,8 +137,8 @@ mod tests {
         let config: Config = Config::load_from_string(toml).unwrap();
         assert_eq!(
             config.mindstorms_path,
-            Some("path/to/mindstorms".to_string())
+            Some(PathBuf::from("path/to/mindstorms"))
         );
-        assert_eq!(config.spike_path, Some("path/to/spike".to_string()));
+        assert_eq!(config.spike_path, Some(PathBuf::from("path/to/spike")));
     }
 }
