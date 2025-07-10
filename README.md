@@ -23,7 +23,7 @@ $ mm track --spike "Project 1.llsp3"
 $ mm track --mindstorms "Project 1.lms"
 
 # Copy changes from working copy to version control.
-$ mm snapshot
+$ mm commit
 
 # Continuously add changes to version control.
 $ mm watch

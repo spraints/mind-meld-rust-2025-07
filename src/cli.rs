@@ -22,8 +22,8 @@ pub enum Commands {
     Store(StoreCommand),
     /// Track a file
     Track(TrackCommand),
-    /// Snapshot changes
-    Snapshot,
+    /// Commit changes
+    Commit,
     /// Continuously add changes
     Watch,
 }

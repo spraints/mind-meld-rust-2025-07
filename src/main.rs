@@ -24,9 +24,7 @@ fn main() {
         Some(cli::Commands::Status(status_cmd)) => cmd_status(status_cmd, config),
         Some(cli::Commands::Store(store_cmd)) => cmd_store(store_cmd, config),
         Some(cli::Commands::Track(track_cmd)) => cmd_track(track_cmd, config),
-        Some(cli::Commands::Snapshot) => {
-            println!("todo: Snapshot changes (not yet implemented)");
-        }
+        Some(cli::Commands::Commit) => cmd_commit(config),
         Some(cli::Commands::Watch) => {
             println!("todo: Watch for changes (not yet implemented)");
         }
@@ -219,6 +217,99 @@ fn cmd_track(cmd: cli::TrackCommand, cfg: Config) {
             }
         }
     };
+}
+
+fn cmd_commit(cfg: Config) {
+    let dirs = dirs::Dirs::new(&cfg).unwrap();
+
+    if cfg.stores.is_empty() {
+        println!("No stores yet!");
+        println!("Get started by running '{} store create'.", exe());
+        return;
+    }
+
+    // Find all tracked projects
+    let mut tracked_projects = Vec::new();
+    for st in &cfg.stores {
+        match store::open(st) {
+            Ok(store) => {
+                match store.project_ids() {
+                    Err(e) => println!("Error reading store {st}: {e}"),
+                    Ok(project_ids) => {
+                        for proj_id in project_ids {
+                            if !tracked_projects.contains(&proj_id) {
+                                tracked_projects.push(proj_id);
+                            }
+                        }
+                    }
+                };
+            }
+            Err(e) => println!("Error opening store {st}: {e}"),
+        };
+    }
+
+    if tracked_projects.is_empty() {
+        println!("No tracked projects found!");
+        println!("Track a project first with '{} track'.", exe());
+        return;
+    }
+
+    // Read all tracked projects
+    let mut projects_to_commit = Vec::new();
+    for proj_id in &tracked_projects {
+        match project::read(proj_id, &dirs) {
+            Ok(raw_project) => {
+                projects_to_commit.push((proj_id, raw_project));
+            }
+            Err(e) => {
+                println!("Error reading project {proj_id}: {e}");
+            }
+        }
+    }
+
+    if projects_to_commit.is_empty() {
+        println!("No projects could be read!");
+        return;
+    }
+
+    // Commit to all stores
+    println!(
+        "Committing {} projects to {} stores...",
+        projects_to_commit.len(),
+        cfg.stores.len()
+    );
+
+    let mut error_count = 0;
+    for st in &cfg.stores {
+        match store::open(st) {
+            Ok(store) => {
+                let project_refs: Vec<(&project::ProjectID, &project::RawProject)> =
+                    projects_to_commit
+                        .iter()
+                        .map(|(id, proj)| (*id, proj))
+                        .collect();
+
+                match store.commit(&project_refs) {
+                    Ok(msg) => println!("  {st}: {msg}"),
+                    Err(e) => {
+                        error_count += 1;
+                        println!("  {st}! error: {e}")
+                    }
+                };
+            }
+            Err(e) => {
+                error_count += 1;
+                println!("  {st}! error opening store: {e}")
+            }
+        };
+    }
+
+    if error_count > 0 {
+        println!("Completed with {} errors", error_count);
+        exit(1);
+    } else {
+        println!("Successfully committed all projects to all stores");
+    }
 }
 
 fn exe() -> String {
