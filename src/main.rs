@@ -296,8 +296,13 @@ fn cmd_commit(cfg: Config) {
     let mut projects_to_commit = Vec::new();
     for proj_id in &tracked_projects {
         match project::read(proj_id, &dirs) {
-            Ok(raw_project) => {
+            Ok(Some(raw_project)) => {
                 projects_to_commit.push((proj_id, raw_project));
+            }
+            Ok(None) => {
+                println!("Error reading project {proj_id}: file does not exist");
+                println!("  To stop tracking it, run:");
+                println!("    {} untrack --{} {:?}", exe(), proj_id.program, proj_id.name);
             }
             Err(e) => {
                 if let Some(io_error) = e.downcast_ref::<std::io::Error>() {

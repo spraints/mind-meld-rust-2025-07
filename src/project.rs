@@ -22,13 +22,17 @@ pub fn all_programs(dirs: &Dirs) -> Vec<(Program, &PathBuf)> {
     ]
 }
 
-pub fn read(id: &ProjectID, dirs: &Dirs) -> Result<RawProject, Box<dyn Error>> {
-    let base_path = dir(id.program, dirs);
-    let path = base_path.join(&id.name);
-    let archive = ZipArchive::new(File::open(path)?)?;
-    Ok(RawProject {
-        archive: RawArchive::read(archive)?,
-    })
+pub fn read(id: &ProjectID, dirs: &Dirs) -> Result<Option<RawProject>, Box<dyn Error>> {
+    let project_dir = match id.program {
+        Program::Mindstorms => &dirs.mindstorms,
+        Program::Spike => &dirs.spike,
+    };
+    let project_path = project_dir.join(&id.name);
+    match std::fs::read(&project_path) {
+        Ok(contents) => Ok(Some(RawProject::from_zip(&contents)?)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(Box::new(e)),
+    }
 }
 
 fn dir(prog: Program, dirs: &Dirs) -> &PathBuf {

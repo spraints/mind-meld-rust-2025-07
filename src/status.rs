@@ -19,7 +19,8 @@ pub fn get_status(
     dirs: &Dirs,
 ) -> Result<Status, Box<dyn Error>> {
     let local = match project::read(proj, dirs) {
-        Ok(project) => project,
+        Ok(Some(project)) => project,
+        Ok(None) => return Ok(Status::LocalMissing),
         Err(e) => {
             if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
                 if io_error.kind() == std::io::ErrorKind::NotFound {

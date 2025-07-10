@@ -23,7 +23,10 @@ pub fn track(
     };
 
     let dirs = dirs::Dirs::new(&cfg)?;
-    let archive = project::read(&id, &dirs)?;
+    let archive = match project::read(&id, &dirs)? {
+        Some(archive) => archive,
+        None => return Err(format!("Project file not found: {}", file_name.display()).into()),
+    };
 
     let update = vec![(&id, &archive)];
 
