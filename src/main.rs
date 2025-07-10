@@ -7,7 +7,7 @@ mod status;
 mod store;
 mod track;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::exit;
 use std::rc::Rc;
 
@@ -228,7 +228,7 @@ fn cmd_commit(cfg: Config) {
     }
 
     // Find all tracked projects
-    let mut tracked_projects = Vec::new();
+    let mut tracked_projects = HashSet::new();
     for st in &cfg.stores {
         match store::open(st) {
             Ok(store) => {
@@ -236,9 +236,7 @@ fn cmd_commit(cfg: Config) {
                     Err(e) => println!("Error reading store {st}: {e}"),
                     Ok(project_ids) => {
                         for proj_id in project_ids {
-                            if !tracked_projects.contains(&proj_id) {
-                                tracked_projects.push(proj_id);
-                            }
+                            tracked_projects.insert(proj_id);
                         }
                     }
                 };
