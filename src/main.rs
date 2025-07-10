@@ -102,7 +102,9 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
                 Err(e) => println!("  {proj}! error: {e}"),
                 Ok(status::Status::NoDifferences) => println!("  {proj}: up to date"),
                 Ok(status::Status::LocalMissing) => {
-                    println!("  {proj}: local copy has been deleted")
+                    println!("  {proj}: local copy has been deleted");
+                    println!("  To stop tracking it, run:");
+                    println!("    {} untrack --{} {:?}", exe(), proj.program, proj.name);
                 }
                 Ok(status::Status::Differences(out_of_date_stores)) => {
                     let store_list_count = out_of_date_stores.len();
