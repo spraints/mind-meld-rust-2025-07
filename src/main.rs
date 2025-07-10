@@ -56,7 +56,7 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
 
     println!("Stores:");
     let mut all_stores = Vec::new();
-    let mut projects: HashMap<ProjectID, (bool, Vec<Rc<Store>>)> = HashMap::new();
+    let mut projects: HashMap<ProjectID, Vec<Rc<Store>>> = HashMap::new();
     for st in &cfg.stores {
         match store::open(st) {
             Ok(store) => {
@@ -69,8 +69,8 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
                         for proj in sp {
                             projects
                                 .entry(proj)
-                                .and_modify(|e| e.1.push(store.clone()))
-                                .or_insert_with(|| (false, vec![store.clone()]));
+                                .and_modify(|e| e.push(store.clone()))
+                                .or_insert_with(|| vec![store.clone()]);
                         }
                     }
                 };
@@ -83,8 +83,7 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     for proj in app::all_projects(&dirs).expect("unexpected error") {
         projects
             .entry(proj)
-            .and_modify(|e| e.0 = true)
-            .or_insert((true, Vec::new()));
+            .or_insert(Vec::new());
     }
 
     if projects.is_empty() {
@@ -96,7 +95,7 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     println!("Projects:");
     let all_stores_count = all_stores.len();
     let mut untracked = Vec::new();
-    for (proj, (_, proj_stores)) in projects {
+    for (proj, proj_stores) in projects {
         match proj_stores.is_empty() {
             true => untracked.push(proj),
             false => match status::get_status(&proj, &all_stores, &dirs) {
