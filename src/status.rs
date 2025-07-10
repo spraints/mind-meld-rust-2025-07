@@ -18,8 +18,17 @@ pub fn get_status(
     stores: &[Rc<Store>],
     dirs: &Dirs,
 ) -> Result<Status, Box<dyn Error>> {
-    let local = project::read(proj, dirs)?; // todo - if local doesn't exist, capture the error and
-                                            // return LocalMissing
+    let local = match project::read(proj, dirs) {
+        Ok(project) => project,
+        Err(e) => {
+            if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
+                if io_error.kind() == std::io::ErrorKind::NotFound {
+                    return Ok(Status::LocalMissing);
+                }
+            }
+            return Err(e);
+        }
+    };
     let local_hash = local.hash();
 
     let mut diff = Vec::new();
