@@ -22,6 +22,8 @@ pub enum Commands {
     Store(StoreCommand),
     /// Track a file
     Track(TrackCommand),
+    /// Untrack a file
+    Untrack(UntrackCommand),
     /// Commit changes
     Commit,
     /// Continuously add changes
@@ -70,6 +72,18 @@ pub struct TrackCommand {
     #[arg(long)]
     pub spike: bool,
     /// Track a mindstorms file
+    #[arg(long)]
+    pub mindstorms: bool,
+
+    pub file_name: PathBuf,
+}
+
+#[derive(Args, Debug)]
+pub struct UntrackCommand {
+    /// Untrack a spike file
+    #[arg(long)]
+    pub spike: bool,
+    /// Untrack a mindstorms file
     #[arg(long)]
     pub mindstorms: bool,
 

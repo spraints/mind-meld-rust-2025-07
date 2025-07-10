@@ -6,6 +6,7 @@ mod project;
 mod status;
 mod store;
 mod track;
+mod untrack;
 
 use std::collections::{HashMap, HashSet};
 use std::process::exit;
@@ -24,6 +25,7 @@ fn main() {
         Some(cli::Commands::Status(status_cmd)) => cmd_status(status_cmd, config),
         Some(cli::Commands::Store(store_cmd)) => cmd_store(store_cmd, config),
         Some(cli::Commands::Track(track_cmd)) => cmd_track(track_cmd, config),
+        Some(cli::Commands::Untrack(untrack_cmd)) => cmd_untrack(untrack_cmd, config),
         Some(cli::Commands::Commit) => cmd_commit(config),
         Some(cli::Commands::Watch) => {
             println!("todo: Watch for changes (not yet implemented)");
@@ -216,6 +218,45 @@ fn cmd_track(cmd: cli::TrackCommand, cfg: Config) {
     };
 }
 
+fn cmd_untrack(cmd: cli::UntrackCommand, cfg: Config) {
+    let cli::UntrackCommand {
+        spike,
+        mindstorms,
+        file_name,
+    } = cmd;
+    let res = match (spike, mindstorms) {
+        (true, false) => untrack::untrack(cfg, project::Program::Spike, file_name),
+        (false, true) => untrack::untrack(cfg, project::Program::Mindstorms, file_name),
+        _ => {
+            eprintln!("Exactly one of --spike or --mindstorms must be specified");
+            exit(1);
+        }
+    };
+    match res {
+        Err(e) => {
+            eprintln!("{e}");
+            exit(1);
+        }
+        Ok(res) => {
+            let untrack::UntrackResult { id, store_results } = res;
+            println!("Stopped tracking {id}");
+            let mut error_count = 0;
+            for (st, st_res) in store_results {
+                match st_res {
+                    Ok(msg) => println!("  {st}: {msg}"),
+                    Err(e) => {
+                        error_count += 1;
+                        println!("  {st}! error: {e}")
+                    }
+                };
+            }
+            if error_count > 0 {
+                exit(1);
+            }
+        }
+    };
+}
+
 fn cmd_commit(cfg: Config) {
     let dirs = dirs::Dirs::new(&cfg).unwrap();
 
@@ -257,7 +298,22 @@ fn cmd_commit(cfg: Config) {
                 projects_to_commit.push((proj_id, raw_project));
             }
             Err(e) => {
-                println!("Error reading project {proj_id}: {e}");
+                if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
+                    if io_error.kind() == std::io::ErrorKind::NotFound {
+                        println!("Error reading project {proj_id}: {e}");
+                        println!("  To stop tracking it, run:");
+                        println!(
+                            "    {} untrack --{} {:?}",
+                            exe(),
+                            proj_id.program,
+                            proj_id.name
+                        );
+                    } else {
+                        println!("Error reading project {proj_id}: {e}");
+                    }
+                } else {
+                    println!("Error reading project {proj_id}: {e}");
+                }
             }
         }
     }

@@ -95,6 +95,12 @@ impl StoreInstance {
             Self::Git(s) => s.read_project(id),
         }
     }
+
+    fn untrack(&self, id: &ProjectID) -> Result<&'static str, Box<dyn Error>> {
+        match self {
+            Self::Git(s) => s.untrack(id),
+        }
+    }
 }
 
 impl Store {
@@ -114,6 +120,10 @@ impl Store {
         projects: &[(&ProjectID, &project::RawProject)],
     ) -> Result<&'static str, Box<dyn Error>> {
         self.inst.commit(projects)
+    }
+
+    pub(crate) fn untrack(&self, id: &ProjectID) -> Result<&'static str, Box<dyn Error>> {
+        self.inst.untrack(id)
     }
 }
 

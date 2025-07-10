@@ -180,6 +180,40 @@ impl GitStore {
         };
         Ok(())
     }
+
+    pub(crate) fn untrack(&self, id: &ProjectID) -> Result<&'static str, Box<dyn Error>> {
+        let head = self.r.head()?;
+        let head_ref = head.referent_name().ok_or("invalid head ref")?;
+
+        // Get the current tree (or empty tree if unborn)
+        let (current_tree, parent_commit_ids) = if head.is_unborn() {
+            (self.r.empty_tree(), Vec::new())
+        } else {
+            (
+                self.r.head_commit()?.tree()?,
+                vec![self.r.head_commit()?.id],
+            )
+        };
+
+        // Create a new tree without the project
+        let mut new_root_tree = tree::Editor::new(&current_tree)?;
+        new_root_tree.remove(Self::path_for(id))?;
+        let new_root_tree_id = new_root_tree.write()?;
+
+        // Create the commit
+        if current_tree.id != new_root_tree_id {
+            let commit_message = format!("Stop tracking {}", id);
+            self.r.commit(
+                head_ref,
+                &commit_message,
+                new_root_tree_id,
+                parent_commit_ids,
+            )?;
+            Ok("removed")
+        } else {
+            Ok("not tracked")
+        }
+    }
 }
 
 fn validate(r: &gix::Repository) -> Result<(), Box<dyn Error>> {
