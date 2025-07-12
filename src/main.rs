@@ -268,20 +268,13 @@ fn cmd_commit(cfg: Config) {
     }
 
     // Find all tracked projects
-    let mut tracked_projects = HashSet::new();
     let (stores, err_stores) = store::open_all(&cfg.stores);
     for (st, e) in err_stores {
         println!("{st}: error opening store: {e}");
     }
-    for (st, store) in stores {
-        match store.project_ids() {
-            Err(e) => println!("Error reading store {st}: {e}"),
-            Ok(project_ids) => {
-                for proj_id in project_ids {
-                    tracked_projects.insert(proj_id);
-                }
-            }
-        };
+    let (tracked_projects, errs) = store::all_project_ids(&stores);
+    for (st, e) in errs {
+        println!("{st}: error reading projects: {e}");
     }
 
     if tracked_projects.is_empty() {
@@ -364,20 +357,13 @@ fn cmd_auto_commit(cfg: Config) {
     }
 
     // Find all tracked projects
-    let mut tracked_projects = HashSet::new();
     let (stores, err_stores) = store::open_all(&cfg.stores);
     for (st, e) in err_stores {
         println!("{st}: error opening store: {e}");
     }
-    for (st, store) in stores {
-        match store.project_ids() {
-            Err(e) => println!("Error reading store {st}: {e}"),
-            Ok(project_ids) => {
-                for proj_id in project_ids {
-                    tracked_projects.insert(proj_id);
-                }
-            }
-        };
+    let (tracked_projects, errs) = store::all_project_ids(&stores);
+    for (st, e) in errs {
+        println!("{st}: error reading projects: {e}");
     }
 
     if tracked_projects.is_empty() {

@@ -1,5 +1,6 @@
 mod git;
 
+use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
@@ -58,6 +59,24 @@ pub fn open_all(
         };
     }
     (ok, errs)
+}
+
+pub fn all_project_ids(
+    stores: &[(StoreConfig, Store)],
+) -> (HashSet<ProjectID>, Vec<(StoreConfig, Box<dyn Error>)>) {
+    let mut res = HashSet::new();
+    let mut errs = Vec::new();
+    for (sc, store) in stores {
+        match store.project_ids() {
+            Ok(proj_ids) => {
+                for proj_id in proj_ids {
+                    res.insert(proj_id);
+                }
+            }
+            Err(e) => errs.push((sc.clone(), e)),
+        };
+    }
+    (res, errs)
 }
 
 impl StoreType {
