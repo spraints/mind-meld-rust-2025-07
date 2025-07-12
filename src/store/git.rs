@@ -1,10 +1,10 @@
 use std::error::Error;
 use std::path::Path;
 
-use gix::{ObjectId, Tree, object::tree, objs::tree::EntryKind};
+use gix::{object::tree, objs::tree::EntryKind, ObjectId, Tree};
 
 use crate::project::{
-    ArchiveEntry, ArchiveEntryContents, ProjectID, RawArchive, RawProject, program_git,
+    program_git, ArchiveEntry, ArchiveEntryContents, ProjectID, RawArchive, RawProject,
 };
 
 pub fn open<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {

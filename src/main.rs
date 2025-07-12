@@ -17,7 +17,6 @@ use config::Config;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use project::ProjectID;
 use std::sync::mpsc::channel;
-use std::time::Duration;
 use store::Store;
 
 fn main() {
@@ -405,7 +404,7 @@ fn cmd_auto_commit(cfg: Config) {
             project::Program::Spike => &dirs.spike,
         };
         let path = base_path.join(&proj_id.name);
-        project_paths.push((proj_id.clone(), path));
+        project_paths.push((proj_id, path));
     }
 
     // TODO - handle ctrl-C for graceful shutdown.
@@ -413,7 +412,7 @@ fn cmd_auto_commit(cfg: Config) {
     // Set up file watcher
     let (tx, rx) = channel();
     let mut watcher = RecommendedWatcher::new(tx, Default::default()).unwrap();
-    for (proj_id, path) in &project_paths {
+    for (_proj_id, path) in &project_paths {
         if let Err(e) = watcher.watch(path, RecursiveMode::NonRecursive) {
             println!("Failed to watch {:?}: {e}", path);
         }
