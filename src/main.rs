@@ -341,7 +341,7 @@ fn cmd_commit(cfg: Config) {
                         .map(|(id, proj)| (*id, proj))
                         .collect();
 
-                match store.commit(&project_refs) {
+                match store.commit(&project_refs, "Update tracked projects") {
                     Ok(msg) => println!("  {st}: {msg}"),
                     Err(e) => {
                         error_count += 1;
@@ -438,7 +438,10 @@ fn cmd_auto_commit(cfg: Config) {
                                 match store::open(st) {
                                     Ok(store) => {
                                         let project_refs = vec![(*proj_id, &raw_project)];
-                                        match store.commit(&project_refs) {
+                                        match store.commit(
+                                            &project_refs,
+                                            "Update tracked projects via auto-commit",
+                                        ) {
                                             Ok(_) => println!("updated {}", path.display()),
                                             Err(e) => {
                                                 error_count += 1;

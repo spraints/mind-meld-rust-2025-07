@@ -91,6 +91,7 @@ impl GitStore {
     pub(crate) fn commit(
         &self,
         projects: &[(&ProjectID, &RawProject)],
+        commit_message: &str,
     ) -> Result<&'static str, Box<dyn Error>> {
         let head = self.r.head()?;
         let head_ref = head.referent_name().ok_or("invalid head ref")?;
@@ -112,15 +113,6 @@ impl GitStore {
             new_root_tree.upsert(Self::path_for(id), EntryKind::Tree, proj_tree)?;
         }
         let new_root_tree_id = new_root_tree.write()?;
-
-        let commit_message = format!(
-            "Start tracking {}",
-            projects
-                .iter()
-                .map(|(id, _)| format!("{id}"))
-                .collect::<Vec<String>>()
-                .join(", ")
-        );
 
         // Create the commit
         if current_tree.id != new_root_tree_id {
@@ -181,7 +173,11 @@ impl GitStore {
         Ok(())
     }
 
-    pub(crate) fn untrack(&self, id: &ProjectID) -> Result<&'static str, Box<dyn Error>> {
+    pub(crate) fn untrack(
+        &self,
+        id: &ProjectID,
+        commit_message: &str,
+    ) -> Result<&'static str, Box<dyn Error>> {
         let head = self.r.head()?;
         let head_ref = head.referent_name().ok_or("invalid head ref")?;
 
@@ -202,7 +198,6 @@ impl GitStore {
 
         // Create the commit
         if current_tree.id != new_root_tree_id {
-            let commit_message = format!("Stop tracking {}", id);
             self.r.commit(
                 head_ref,
                 &commit_message,

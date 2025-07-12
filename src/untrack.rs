@@ -26,7 +26,7 @@ pub fn untrack(
     for st in cfg.stores {
         let res = match store::open(&st) {
             Err(e) => Err(e),
-            Ok(store) => store.untrack(&id),
+            Ok(store) => store.untrack(&id, &format!("Stop tracking {id}")),
         };
         store_results.push((st, res));
     }

@@ -81,9 +81,10 @@ impl StoreInstance {
     fn commit(
         &self,
         projects: &[(&ProjectID, &project::RawProject)],
+        message: &str,
     ) -> Result<&'static str, Box<dyn Error>> {
         match self {
-            Self::Git(s) => s.commit(projects),
+            Self::Git(s) => s.commit(projects, message),
         }
     }
 
@@ -96,9 +97,9 @@ impl StoreInstance {
         }
     }
 
-    fn untrack(&self, id: &ProjectID) -> Result<&'static str, Box<dyn Error>> {
+    fn untrack(&self, id: &ProjectID, message: &str) -> Result<&'static str, Box<dyn Error>> {
         match self {
-            Self::Git(s) => s.untrack(id),
+            Self::Git(s) => s.untrack(id, message),
         }
     }
 }
@@ -118,12 +119,17 @@ impl Store {
     pub(crate) fn commit(
         &self,
         projects: &[(&ProjectID, &project::RawProject)],
+        message: &str,
     ) -> Result<&'static str, Box<dyn Error>> {
-        self.inst.commit(projects)
+        self.inst.commit(projects, message)
     }
 
-    pub(crate) fn untrack(&self, id: &ProjectID) -> Result<&'static str, Box<dyn Error>> {
-        self.inst.untrack(id)
+    pub(crate) fn untrack(
+        &self,
+        id: &ProjectID,
+        message: &str,
+    ) -> Result<&'static str, Box<dyn Error>> {
+        self.inst.untrack(id, message)
     }
 }
 

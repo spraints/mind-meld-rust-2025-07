@@ -30,11 +30,13 @@ pub fn track(
 
     let update = vec![(&id, &archive)];
 
+    let commit_message = format!("Start tracking {id}");
+
     let mut store_results = Vec::new();
     for st in cfg.stores {
         let res = match store::open(&st) {
             Err(e) => Err(e),
-            Ok(store) => store.commit(&update),
+            Ok(store) => store.commit(&update, &commit_message),
         };
         store_results.push((st, res));
     }
