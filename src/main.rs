@@ -14,11 +14,11 @@ use std::rc::Rc;
 
 use clap::Parser;
 use config::Config;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use project::ProjectID;
-use store::Store;
-use notify::{Watcher, RecursiveMode, watcher, DebouncedEvent};
 use std::sync::mpsc::channel;
 use std::time::Duration;
+use store::Store;
 
 fn main() {
     let cli = cli::Cli::parse();
@@ -408,21 +408,27 @@ fn cmd_auto_commit(cfg: Config) {
         project_paths.push((proj_id.clone(), path));
     }
 
+    // TODO - handle ctrl-C for graceful shutdown.
+
     // Set up file watcher
     let (tx, rx) = channel();
-    let mut watcher = watcher(tx, Duration::from_secs(2)).unwrap();
-    for (_proj_id, path) in &project_paths {
+    let mut watcher = RecommendedWatcher::new(tx, Default::default()).unwrap();
+    for (proj_id, path) in &project_paths {
         if let Err(e) = watcher.watch(path, RecursiveMode::NonRecursive) {
             println!("Failed to watch {:?}: {e}", path);
         }
     }
     println!("Watching for changes to tracked files...");
 
-    loop {
-        match rx.recv() {
-            Ok(DebouncedEvent::Write(path)) | Ok(DebouncedEvent::Create(path)) => {
+    for res in rx {
+        match res {
+            Ok(event) => {
+                let path = &event.paths[0]; // todo handle all paths.
+
                 // Find which project this path matches
-                if let Some((proj_id, _)) = project_paths.iter().find(|(_, p)| **p == path) {
+                // todo emit a warning for paths that we don't recognize.
+                if let Some((proj_id, _)) = project_paths.iter().find(|(_, p)| p == path) {
+                    println!("got change to {proj_id}");
                     // Read the project
                     match project::read(proj_id, &dirs) {
                         Ok(Some(raw_project)) => {
@@ -431,7 +437,7 @@ fn cmd_auto_commit(cfg: Config) {
                             for st in &cfg.stores {
                                 match store::open(st) {
                                     Ok(store) => {
-                                        let project_refs = vec![(proj_id, &raw_project)];
+                                        let project_refs = vec![(*proj_id, &raw_project)];
                                         match store.commit(&project_refs) {
                                             Ok(_) => println!("updated {}", path.display()),
                                             Err(e) => {
@@ -459,7 +465,6 @@ fn cmd_auto_commit(cfg: Config) {
                     }
                 }
             }
-            Ok(_) => {},
             Err(e) => println!("watch error: {e}"),
         }
     }
