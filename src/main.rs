@@ -12,6 +12,7 @@ mod untrack;
 use std::collections::HashMap;
 use std::process::exit;
 use std::rc::Rc;
+use std::time::SystemTime;
 
 use clap::Parser;
 use config::Config;
@@ -33,6 +34,7 @@ fn main() {
         Some(cli::Commands::AutoCommit) => {
             cmd_auto_commit(config);
         }
+        Some(cli::Commands::Log(log_cmd)) => cmd_log(log_cmd, config),
     }
 }
 
@@ -432,6 +434,92 @@ fn cmd_auto_commit(cfg: Config) {
             Err(e) => println!("watch error: {e}"),
         }
     }
+}
+
+fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
+    let cli::LogCommand { duration, store } = cmd;
+
+    if cfg.stores.is_empty() {
+        println!("No stores yet!");
+        println!("Get started by running '{} store create'.", exe());
+        return;
+    }
+
+    // Determine which store to use
+    let target_store = match store {
+        Some(store_path) => {
+            // Find the store that matches the provided path
+            let store_path = std::path::absolute(store_path).unwrap_or_else(|_| {
+                eprintln!("Invalid store path");
+                exit(1);
+            });
+
+            let matching_store = cfg.stores.iter().find(|s| {
+                std::path::absolute(&s.path)
+                    .map(|p| p == store_path)
+                    .unwrap_or(false)
+            });
+
+            match matching_store {
+                Some(s) => s,
+                None => {
+                    eprintln!("Store not found: {}", store_path.display());
+                    exit(1);
+                }
+            }
+        }
+        None => {
+            // Use the only store if there's just one
+            if cfg.stores.len() == 1 {
+                &cfg.stores[0]
+            } else {
+                eprintln!("Multiple stores available. Please specify one with --store:");
+                for store in &cfg.stores {
+                    println!("  {}", store.path.display());
+                }
+                exit(1);
+            }
+        }
+    };
+
+    // Open the store
+    let store = match store::open(target_store) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!(
+                "Failed to open store {}: {}",
+                target_store.path.display(),
+                e
+            );
+            exit(1);
+        }
+    };
+
+    // Get the log
+    let commits = match store.log(duration) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Failed to get log: {}", e);
+            exit(1);
+        }
+    };
+
+    if commits.is_empty() {
+        println!("No commits found in the last {:?}", duration);
+        return;
+    }
+
+    // Print the commits
+    for commit in commits {
+        let date_str = format_datetime(commit.date);
+        println!("{} {} {}", commit.hash, date_str, commit.message);
+    }
+}
+
+fn format_datetime(time: SystemTime) -> String {
+    use chrono::{DateTime, Local};
+    let datetime: DateTime<Local> = DateTime::from(time);
+    datetime.format("%Y-%m-%d %H:%M").to_string()
 }
 
 fn exe() -> String {

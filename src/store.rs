@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use crate::config::StoreConfig;
 use crate::project::{self, ProjectID};
@@ -26,6 +27,13 @@ enum StoreInstance {
 type StoreErrors = Vec<(StoreConfig, Box<dyn Error>)>;
 
 pub type CommitResult = Result<&'static str, Box<dyn Error>>;
+
+#[derive(Debug)]
+pub struct CommitInfo {
+    pub hash: String,
+    pub date: std::time::SystemTime,
+    pub message: String,
+}
 
 fn store_type(t: &str) -> Result<StoreType, String> {
     match t {
@@ -131,6 +139,12 @@ impl StoreInstance {
             Self::Git(s) => s.untrack(id, message),
         }
     }
+
+    fn log(&self, since: Duration) -> Result<Vec<CommitInfo>, Box<dyn Error + 'static>> {
+        match self {
+            Self::Git(s) => s.log(since),
+        }
+    }
 }
 
 impl Store {
@@ -155,6 +169,10 @@ impl Store {
 
     pub(crate) fn untrack(&self, id: &ProjectID, message: &str) -> CommitResult {
         self.inst.untrack(id, message)
+    }
+
+    pub fn log(&self, since: Duration) -> Result<Vec<CommitInfo>, Box<dyn Error>> {
+        self.inst.log(since)
     }
 }
 

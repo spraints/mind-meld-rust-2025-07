@@ -1,10 +1,12 @@
 use std::error::Error;
 use std::path::Path;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use gix::{object::tree, objs::tree::EntryKind, ObjectId, Tree};
+use gix::bstr::ByteSlice;
+use gix::{ObjectId, Tree, object::tree, objs::tree::EntryKind, revision::walk::Sorting};
 
 use crate::project::{
-    program_git, ArchiveEntry, ArchiveEntryContents, ProjectID, RawArchive, RawProject,
+    ArchiveEntry, ArchiveEntryContents, ProjectID, RawArchive, RawProject, program_git,
 };
 
 pub fn open<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
@@ -126,6 +128,48 @@ impl GitStore {
         } else {
             Ok("already up to date")
         }
+    }
+
+    pub fn log(&self, since: Duration) -> Result<Vec<crate::store::CommitInfo>, Box<dyn Error>> {
+        if self.r.head()?.is_unborn() {
+            return Ok(Vec::new());
+        }
+
+        let cutoff_time = SystemTime::now() - since;
+        let mut commits = Vec::new();
+
+        let head_commit = self.r.head_commit()?;
+        let revwalk = self
+            .r
+            .rev_walk(Some(head_commit.id))
+            .sorting(Sorting::ByCommitTime(Default::default()));
+        let commit_infos = revwalk.all()?;
+
+        for info in commit_infos {
+            let info = info?;
+            let commit_id = info.id;
+            let commit_time = match info.commit_time {
+                Some(secs) => secs,
+                None => continue,
+            };
+            let commit_system_time = UNIX_EPOCH + Duration::from_secs(commit_time as u64);
+            if commit_system_time < cutoff_time {
+                break;
+            }
+            let commit = self.r.find_object(commit_id)?.try_into_commit()?;
+            let hash = commit_id.to_string();
+            let message = match commit.message() {
+                Ok(m) => m.body.as_ref().map(|b| b.as_bytes()).unwrap_or_default(),
+                Err(_) => b"",
+            };
+            let message = std::str::from_utf8(message).unwrap_or("");
+            commits.push(crate::store::CommitInfo {
+                hash: hash[..8].to_string(),
+                date: commit_system_time,
+                message: message.lines().next().unwrap_or("").to_string(),
+            });
+        }
+        Ok(commits)
     }
 
     fn path_for(id: &ProjectID) -> String {

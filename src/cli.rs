@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use clap::{Args, Parser, Subcommand};
 
@@ -28,6 +29,8 @@ pub enum Commands {
     Commit,
     /// Automatically commit changes as they happen
     AutoCommit,
+    /// Show commit history
+    Log(LogCommand),
 }
 
 #[derive(Args, Debug, Default)]
@@ -35,6 +38,37 @@ pub struct StatusCommand {
     /// Also show projects that aren't tracked yet.
     #[arg(long = "untracked")]
     pub show_untracked: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct LogCommand {
+    /// Duration to look back (e.g., "1d", "2w", "1h") [default: 1d]
+    #[arg(long, default_value = "1d", value_parser = parse_duration)]
+    pub duration: Duration,
+
+    /// Store to show logs from (if not specified, uses the only store if there's just one)
+    #[arg(long)]
+    pub store: Option<PathBuf>,
+}
+
+fn parse_duration(s: &str) -> Result<Duration, String> {
+    if s.is_empty() {
+        return Err("duration cannot be empty".to_string());
+    }
+
+    let (num_str, unit) = s.split_at(s.len() - 1);
+    let num: u64 = num_str
+        .parse()
+        .map_err(|_| format!("invalid number: {}", num_str))?;
+
+    match unit {
+        "s" => Ok(Duration::from_secs(num)),
+        "m" => Ok(Duration::from_secs(num * 60)),
+        "h" => Ok(Duration::from_secs(num * 3600)),
+        "d" => Ok(Duration::from_secs(num * 86400)),
+        "w" => Ok(Duration::from_secs(num * 604800)),
+        _ => Err(format!("invalid duration unit: {}", unit)),
+    }
 }
 
 #[derive(Args, Debug)]

@@ -15,3 +15,4 @@ serde_json = "1.0.140"
 sha2 = "0.10.9"
 toml = "0.8.23"
 zip = "4.2.0"
+chrono = { version = "0.4", features = ["serde"] }
