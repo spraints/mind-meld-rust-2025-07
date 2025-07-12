@@ -1,5 +1,6 @@
 mod app;
 mod cli;
+mod commit;
 mod config;
 mod dirs;
 mod project;
@@ -283,67 +284,72 @@ fn cmd_commit(cfg: Config) {
         return;
     }
 
-    // Read all tracked projects
-    let mut projects_to_commit = Vec::new();
-    for proj_id in &tracked_projects {
-        match project::read(proj_id, &dirs) {
-            Ok(Some(raw_project)) => {
-                projects_to_commit.push((proj_id, raw_project));
-            }
-            Ok(None) => {
-                println!("Project {proj_id} does not exist.");
-                println!("  To stop tracking it, run:");
-                println!(
-                    "    {} untrack --{} {:?}",
-                    exe(),
-                    proj_id.program,
-                    proj_id.name
-                );
-                println!();
-            }
-            Err(e) => {
-                println!("Error reading project {proj_id}: {e}");
-            }
-        }
-    }
+    // // Read all tracked projects
+    // let mut projects_to_commit = Vec::new();
+    // for proj_id in &tracked_projects {
+    //     match project::read(proj_id, &dirs) {
+    //         Ok(Some(raw_project)) => {
+    //             projects_to_commit.push((proj_id, raw_project));
+    //         }
+    //         Ok(None) => {
+    //             println!("Project {proj_id} does not exist.");
+    //             println!("  To stop tracking it, run:");
+    //             println!(
+    //                 "    {} untrack --{} {:?}",
+    //                 exe(),
+    //                 proj_id.program,
+    //                 proj_id.name
+    //             );
+    //             println!();
+    //         }
+    //         Err(e) => {
+    //             println!("Error reading project {proj_id}: {e}");
+    //         }
+    //     }
+    // }
 
-    if projects_to_commit.is_empty() {
-        println!("No projects could be read!");
-        return;
-    }
+    // if projects_to_commit.is_empty() {
+    //     println!("No projects could be read!");
+    //     return;
+    // }
 
     // Commit to all stores
     println!(
         "Committing {} projects to {} stores...",
-        projects_to_commit.len(),
+        tracked_projects.len(),
         cfg.stores.len()
     );
 
     let (stores, err_stores) = store::open_all(&cfg.stores);
-    let mut error_count = err_stores.len();
     for (st, e) in err_stores {
         println!("  {st}! error opening store: {e}")
     }
-    for (st, store) in stores {
-        let project_refs: Vec<(&project::ProjectID, &project::RawProject)> = projects_to_commit
-            .iter()
-            .map(|(id, proj)| (*id, proj))
-            .collect();
 
-        match store.commit(&project_refs, "Update tracked projects") {
-            Ok(msg) => println!("  {st}: {msg}"),
-            Err(e) => {
-                error_count += 1;
-                println!("  {st}! error: {e}")
-            }
-        };
+    let commit::CommitResult {
+        missing_projects,
+        project_read_errors,
+        store_results,
+    } = commit::commit(&stores, &dirs, &tracked_projects, "Update tracked projects");
+
+    for proj_id in missing_projects {
+        println!("Project {proj_id} does not exist on this computer.");
+        println!("  To stop tracking it, run:");
+        println!(
+            "    {} untrack --{} {:?}",
+            exe(),
+            proj_id.program,
+            proj_id.name
+        );
+        println!();
     }
-
-    if error_count > 0 {
-        println!("Completed with {} errors", error_count);
-        exit(1);
-    } else {
-        println!("Successfully committed all projects to all stores");
+    for (proj_id, e) in project_read_errors {
+        println!("{proj_id}: error reading project: {e}");
+    }
+    for (st, res) in store_results {
+        match res {
+            Ok(msg) => println!("{st}: {msg}"),
+            Err(e) => println!("{st}! {e}"),
+        };
     }
 }
 
@@ -399,45 +405,46 @@ fn cmd_auto_commit(cfg: Config) {
         match res {
             Ok(event) => {
                 let path = &event.paths[0]; // todo handle all paths.
+                println!("todo: {path:?}");
 
-                // Find which project this path matches
-                // todo emit a warning for paths that we don't recognize.
-                if let Some((proj_id, _)) = project_paths.iter().find(|(_, p)| p == path) {
-                    println!("got change to {proj_id}");
-                    // Read the project
-                    match project::read(proj_id, &dirs) {
-                        Ok(Some(raw_project)) => {
-                            // Commit to all stores
-                            let (stores, err_stores) = store::open_all(&cfg.stores);
-                            let mut error_count = err_stores.len();
-                            for (st, e) in err_stores {
-                                println!("{st}: error opening store: {e}");
-                            }
-                            for (st, store) in stores {
-                                let project_refs = vec![(*proj_id, &raw_project)];
-                                match store.commit(
-                                    &project_refs,
-                                    "Update tracked projects via auto-commit",
-                                ) {
-                                    Ok(_) => println!("updated {}", path.display()),
-                                    Err(e) => {
-                                        error_count += 1;
-                                        println!("  {st}! error: {e}")
-                                    }
-                                };
-                            }
-                            if error_count > 0 {
-                                println!("Completed with {} errors", error_count);
-                            }
-                        }
-                        Ok(None) => {
-                            println!("Project {proj_id} does not exist.");
-                        }
-                        Err(e) => {
-                            println!("Error reading project {proj_id}: {e}");
-                        }
-                    }
-                }
+                // // Find which project this path matches
+                // // todo emit a warning for paths that we don't recognize.
+                // if let Some((proj_id, _)) = project_paths.iter().find(|(_, p)| p == path) {
+                //     println!("got change to {proj_id}");
+                //     // Read the project
+                //     match project::read(proj_id, &dirs) {
+                //         Ok(Some(raw_project)) => {
+                //             // Commit to all stores
+                //             let (stores, err_stores) = store::open_all(&cfg.stores);
+                //             let mut error_count = err_stores.len();
+                //             for (st, e) in err_stores {
+                //                 println!("{st}: error opening store: {e}");
+                //             }
+                //             for (st, store) in stores {
+                //                 let project_refs = vec![(*proj_id, &raw_project)];
+                //                 match store.commit(
+                //                     &project_refs,
+                //                     "Update tracked projects via auto-commit",
+                //                 ) {
+                //                     Ok(_) => println!("updated {}", path.display()),
+                //                     Err(e) => {
+                //                         error_count += 1;
+                //                         println!("  {st}! error: {e}")
+                //                     }
+                //                 };
+                //             }
+                //             if error_count > 0 {
+                //                 println!("Completed with {} errors", error_count);
+                //             }
+                //         }
+                //         Ok(None) => {
+                //             println!("Project {proj_id} does not exist.");
+                //         }
+                //         Err(e) => {
+                //             println!("Error reading project {proj_id}: {e}");
+                //         }
+                //     }
+                // }
             }
             Err(e) => println!("watch error: {e}"),
         }

@@ -116,7 +116,7 @@ impl StoreInstance {
 
     fn commit(
         &self,
-        projects: &[(&ProjectID, &project::RawProject)],
+        projects: &[(ProjectID, project::RawProject)],
         message: &str,
     ) -> Result<&'static str, Box<dyn Error>> {
         match self {
@@ -154,7 +154,7 @@ impl Store {
 
     pub(crate) fn commit(
         &self,
-        projects: &[(&ProjectID, &project::RawProject)],
+        projects: &[(ProjectID, project::RawProject)],
         message: &str,
     ) -> Result<&'static str, Box<dyn Error>> {
         self.inst.commit(projects, message)

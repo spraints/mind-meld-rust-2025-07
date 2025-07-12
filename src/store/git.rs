@@ -90,7 +90,7 @@ impl GitStore {
 
     pub(crate) fn commit(
         &self,
-        projects: &[(&ProjectID, &RawProject)],
+        projects: &[(ProjectID, RawProject)],
         commit_message: &str,
     ) -> Result<&'static str, Box<dyn Error>> {
         let head = self.r.head()?;

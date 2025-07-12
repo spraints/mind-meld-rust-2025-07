@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{Read, Seek};
 use std::path::PathBuf;
 
-use sha2::{Digest, Sha256, digest::Update};
+use sha2::{digest::Update, Digest, Sha256};
 use zip::ZipArchive;
 
 use crate::dirs::Dirs;
@@ -57,7 +57,7 @@ pub fn program_git(name: &gix::bstr::BStr) -> Result<Program, String> {
     }
 }
 
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Eq, Hash, PartialEq, Clone)]
 pub struct ProjectID {
     pub(crate) program: Program,
     pub(crate) name: String,

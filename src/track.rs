@@ -28,9 +28,8 @@ pub fn track(
         None => return Err(format!("Project file not found: {}", file_name.display()).into()),
     };
 
-    let update = vec![(&id, &archive)];
-
     let commit_message = format!("Start tracking {id}");
+    let update = vec![(id.clone(), archive)];
 
     let mut store_results = Vec::new();
     let (stores, store_errs) = store::open_all(&cfg.stores);
