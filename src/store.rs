@@ -23,6 +23,10 @@ enum StoreInstance {
     Git(git::GitStore),
 }
 
+type StoreErrors = Vec<(StoreConfig, Box<dyn Error>)>;
+
+pub type CommitResult = Result<&'static str, Box<dyn Error>>;
+
 fn store_type(t: &str) -> Result<StoreType, String> {
     match t {
         STORE_TYPE_GIT => Ok(StoreType::Git),
@@ -44,12 +48,7 @@ pub fn open(st: &StoreConfig) -> Result<Store, Box<dyn Error>> {
     Ok(Store { inst, path })
 }
 
-pub fn open_all(
-    scs: &[StoreConfig],
-) -> (
-    Vec<(StoreConfig, Store)>,
-    Vec<(StoreConfig, Box<dyn Error>)>,
-) {
+pub fn open_all(scs: &[StoreConfig]) -> (Vec<(StoreConfig, Store)>, StoreErrors) {
     let mut ok = Vec::new();
     let mut errs = Vec::new();
     for st in scs {
@@ -61,9 +60,7 @@ pub fn open_all(
     (ok, errs)
 }
 
-pub fn all_project_ids(
-    stores: &[(StoreConfig, Store)],
-) -> (HashSet<ProjectID>, Vec<(StoreConfig, Box<dyn Error>)>) {
+pub fn all_project_ids(stores: &[(StoreConfig, Store)]) -> (HashSet<ProjectID>, StoreErrors) {
     let mut res = HashSet::new();
     let mut errs = Vec::new();
     for (sc, store) in stores {
@@ -114,11 +111,7 @@ impl StoreInstance {
         }
     }
 
-    fn commit(
-        &self,
-        projects: &[(ProjectID, project::RawProject)],
-        message: &str,
-    ) -> Result<&'static str, Box<dyn Error>> {
+    fn commit(&self, projects: &[(ProjectID, project::RawProject)], message: &str) -> CommitResult {
         match self {
             Self::Git(s) => s.commit(projects, message),
         }
@@ -133,7 +126,7 @@ impl StoreInstance {
         }
     }
 
-    fn untrack(&self, id: &ProjectID, message: &str) -> Result<&'static str, Box<dyn Error>> {
+    fn untrack(&self, id: &ProjectID, message: &str) -> CommitResult {
         match self {
             Self::Git(s) => s.untrack(id, message),
         }
@@ -156,15 +149,11 @@ impl Store {
         &self,
         projects: &[(ProjectID, project::RawProject)],
         message: &str,
-    ) -> Result<&'static str, Box<dyn Error>> {
+    ) -> CommitResult {
         self.inst.commit(projects, message)
     }
 
-    pub(crate) fn untrack(
-        &self,
-        id: &ProjectID,
-        message: &str,
-    ) -> Result<&'static str, Box<dyn Error>> {
+    pub(crate) fn untrack(&self, id: &ProjectID, message: &str) -> CommitResult {
         self.inst.untrack(id, message)
     }
 }

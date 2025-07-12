@@ -9,7 +9,7 @@ mod store;
 mod track;
 mod untrack;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::process::exit;
 use std::rc::Rc;
 

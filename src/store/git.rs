@@ -118,7 +118,7 @@ impl GitStore {
         if current_tree.id != new_root_tree_id {
             self.r.commit(
                 head_ref,
-                &commit_message,
+                commit_message,
                 new_root_tree_id,
                 parent_commit_ids,
             )?;
@@ -200,7 +200,7 @@ impl GitStore {
         if current_tree.id != new_root_tree_id {
             self.r.commit(
                 head_ref,
-                &commit_message,
+                commit_message,
                 new_root_tree_id,
                 parent_commit_ids,
             )?;

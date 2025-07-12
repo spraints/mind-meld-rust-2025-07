@@ -3,12 +3,12 @@ use std::error::Error;
 use crate::config::StoreConfig;
 use crate::dirs::Dirs;
 use crate::project::{self, ProjectID};
-use crate::store::Store;
+use crate::store::{self, Store};
 
 pub struct CommitResult {
     pub missing_projects: Vec<ProjectID>,
     pub project_read_errors: Vec<(ProjectID, Box<dyn Error>)>,
-    pub store_results: Vec<(StoreConfig, Result<&'static str, Box<dyn Error>>)>,
+    pub store_results: Vec<(StoreConfig, store::CommitResult)>,
 }
 
 pub fn commit<'a, P: IntoIterator<Item = &'a ProjectID>>(

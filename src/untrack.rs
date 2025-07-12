@@ -7,10 +7,8 @@ use crate::store;
 
 pub struct UntrackResult {
     pub id: project::ProjectID,
-    pub store_results: Vec<(StoreConfig, StoreUntrackResult)>,
+    pub store_results: Vec<(StoreConfig, store::CommitResult)>,
 }
-
-type StoreUntrackResult = Result<&'static str, Box<dyn Error>>;
 
 pub fn untrack(
     cfg: Config,
