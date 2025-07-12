@@ -63,6 +63,12 @@ pub struct ProjectID {
     pub(crate) name: String,
 }
 
+impl ProjectID {
+    pub fn path(&self, dirs: &Dirs) -> PathBuf {
+        dir(self.program, dirs).join(&self.name)
+    }
+}
+
 impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
