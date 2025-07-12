@@ -59,27 +59,24 @@ fn cmd_status(cmd: cli::StatusCommand, cfg: Config) {
     }
 
     println!("Stores:");
-    let mut all_stores = Vec::new();
+    let (all_stores, err_stores) = store::open_all(&cfg.stores);
+    for (st, e) in err_stores {
+        println!("  {st}: error opening store: {e}");
+    }
+    let all_stores: Vec<Rc<Store>> = all_stores.into_iter().map(|(_, s)| Rc::new(s)).collect();
     let mut projects: HashMap<ProjectID, Vec<Rc<Store>>> = HashMap::new();
-    for st in &cfg.stores {
-        match store::open(st) {
-            Ok(store) => {
-                println!("  {st}");
-                let store = Rc::new(store);
-                all_stores.push(store.clone());
-                match store.project_ids() {
-                    Err(e) => println!("    error in repo: {e}"),
-                    Ok(sp) => {
-                        for proj in sp {
-                            projects
-                                .entry(proj)
-                                .and_modify(|e| e.push(store.clone()))
-                                .or_insert_with(|| vec![store.clone()]);
-                        }
-                    }
-                };
+    for store in &all_stores {
+        println!("  {store}");
+        match store.project_ids() {
+            Err(e) => println!("    could not get tracked projects: {e}"),
+            Ok(sp) => {
+                for proj in sp {
+                    projects
+                        .entry(proj)
+                        .and_modify(|e| e.push(store.clone()))
+                        .or_insert_with(|| vec![store.clone()]);
+                }
             }
-            Err(e) => println!("  {st}: error: {e}"),
         };
     }
     println!();
@@ -272,19 +269,18 @@ fn cmd_commit(cfg: Config) {
 
     // Find all tracked projects
     let mut tracked_projects = HashSet::new();
-    for st in &cfg.stores {
-        match store::open(st) {
-            Ok(store) => {
-                match store.project_ids() {
-                    Err(e) => println!("Error reading store {st}: {e}"),
-                    Ok(project_ids) => {
-                        for proj_id in project_ids {
-                            tracked_projects.insert(proj_id);
-                        }
-                    }
-                };
+    let (stores, err_stores) = store::open_all(&cfg.stores);
+    for (st, e) in err_stores {
+        println!("{st}: error opening store: {e}");
+    }
+    for (st, store) in stores {
+        match store.project_ids() {
+            Err(e) => println!("Error reading store {st}: {e}"),
+            Ok(project_ids) => {
+                for proj_id in project_ids {
+                    tracked_projects.insert(proj_id);
+                }
             }
-            Err(e) => println!("Error opening store {st}: {e}"),
         };
     }
 
@@ -330,27 +326,22 @@ fn cmd_commit(cfg: Config) {
         cfg.stores.len()
     );
 
-    let mut error_count = 0;
-    for st in &cfg.stores {
-        match store::open(st) {
-            Ok(store) => {
-                let project_refs: Vec<(&project::ProjectID, &project::RawProject)> =
-                    projects_to_commit
-                        .iter()
-                        .map(|(id, proj)| (*id, proj))
-                        .collect();
+    let (stores, err_stores) = store::open_all(&cfg.stores);
+    let mut error_count = err_stores.len();
+    for (st, e) in err_stores {
+        println!("  {st}! error opening store: {e}")
+    }
+    for (st, store) in stores {
+        let project_refs: Vec<(&project::ProjectID, &project::RawProject)> = projects_to_commit
+            .iter()
+            .map(|(id, proj)| (*id, proj))
+            .collect();
 
-                match store.commit(&project_refs, "Update tracked projects") {
-                    Ok(msg) => println!("  {st}: {msg}"),
-                    Err(e) => {
-                        error_count += 1;
-                        println!("  {st}! error: {e}")
-                    }
-                };
-            }
+        match store.commit(&project_refs, "Update tracked projects") {
+            Ok(msg) => println!("  {st}: {msg}"),
             Err(e) => {
                 error_count += 1;
-                println!("  {st}! error opening store: {e}")
+                println!("  {st}! error: {e}")
             }
         };
     }
@@ -374,19 +365,18 @@ fn cmd_auto_commit(cfg: Config) {
 
     // Find all tracked projects
     let mut tracked_projects = HashSet::new();
-    for st in &cfg.stores {
-        match store::open(st) {
-            Ok(store) => {
-                match store.project_ids() {
-                    Err(e) => println!("Error reading store {st}: {e}"),
-                    Ok(project_ids) => {
-                        for proj_id in project_ids {
-                            tracked_projects.insert(proj_id);
-                        }
-                    }
-                };
+    let (stores, err_stores) = store::open_all(&cfg.stores);
+    for (st, e) in err_stores {
+        println!("{st}: error opening store: {e}");
+    }
+    for (st, store) in stores {
+        match store.project_ids() {
+            Err(e) => println!("Error reading store {st}: {e}"),
+            Ok(project_ids) => {
+                for proj_id in project_ids {
+                    tracked_projects.insert(proj_id);
+                }
             }
-            Err(e) => println!("Error opening store {st}: {e}"),
         };
     }
 
@@ -432,25 +422,21 @@ fn cmd_auto_commit(cfg: Config) {
                     match project::read(proj_id, &dirs) {
                         Ok(Some(raw_project)) => {
                             // Commit to all stores
-                            let mut error_count = 0;
-                            for st in &cfg.stores {
-                                match store::open(st) {
-                                    Ok(store) => {
-                                        let project_refs = vec![(*proj_id, &raw_project)];
-                                        match store.commit(
-                                            &project_refs,
-                                            "Update tracked projects via auto-commit",
-                                        ) {
-                                            Ok(_) => println!("updated {}", path.display()),
-                                            Err(e) => {
-                                                error_count += 1;
-                                                println!("  {st}! error: {e}")
-                                            }
-                                        };
-                                    }
+                            let (stores, err_stores) = store::open_all(&cfg.stores);
+                            let mut error_count = err_stores.len();
+                            for (st, e) in err_stores {
+                                println!("{st}: error opening store: {e}");
+                            }
+                            for (st, store) in stores {
+                                let project_refs = vec![(*proj_id, &raw_project)];
+                                match store.commit(
+                                    &project_refs,
+                                    "Update tracked projects via auto-commit",
+                                ) {
+                                    Ok(_) => println!("updated {}", path.display()),
                                     Err(e) => {
                                         error_count += 1;
-                                        println!("  {st}! error opening store: {e}")
+                                        println!("  {st}! error: {e}")
                                     }
                                 };
                             }

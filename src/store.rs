@@ -43,6 +43,23 @@ pub fn open(st: &StoreConfig) -> Result<Store, Box<dyn Error>> {
     Ok(Store { inst, path })
 }
 
+pub fn open_all(
+    scs: &[StoreConfig],
+) -> (
+    Vec<(StoreConfig, Store)>,
+    Vec<(StoreConfig, Box<dyn Error>)>,
+) {
+    let mut ok = Vec::new();
+    let mut errs = Vec::new();
+    for st in scs {
+        match open(st) {
+            Ok(s) => ok.push((st.clone(), s)),
+            Err(e) => errs.push((st.clone(), e)),
+        };
+    }
+    (ok, errs)
+}
+
 impl StoreType {
     fn create<P: AsRef<Path>>(&self, p: P) -> Result<StoreInstance, Box<dyn Error>> {
         match self {

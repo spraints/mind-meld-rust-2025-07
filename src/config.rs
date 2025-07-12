@@ -16,7 +16,7 @@ pub struct Config {
     config_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StoreConfig {
     pub path: PathBuf,
     #[serde(rename = "type")]
