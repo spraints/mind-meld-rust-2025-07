@@ -42,7 +42,7 @@ pub struct StatusCommand {
 
 #[derive(Args, Debug)]
 pub struct LogCommand {
-    /// Duration to look back (e.g., "1d", "2w", "1h") [default: 1d]
+    /// Duration to look back (e.g., "1d", "2w", "1h")
     #[arg(long, default_value = "1d", value_parser = parse_duration)]
     pub duration: Duration,
 
