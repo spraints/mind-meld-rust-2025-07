@@ -3,7 +3,6 @@ use std::error::Error;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use gix::bstr::ByteSlice;
 use gix::object::tree;
 use gix::objs::tree::EntryKind;
 use gix::revision::walk::Sorting;
@@ -138,17 +137,15 @@ impl GitStore {
         }
     }
 
-    pub fn log(&self, since: Duration) -> Result<super::LogResult, Box<dyn Error>> {
+    pub fn log(&self, since: SystemTime) -> Result<super::LogResult, Box<dyn Error>> {
         use super::LogResult;
         if self.r.head()?.is_unborn() {
             return Ok(LogResult::Unborn);
         }
 
-        let cutoff_time = SystemTime::now() - since;
-
         let head_commit = self.r.head_commit()?;
         let head_commit_info = self.commit_info(&head_commit)?;
-        if head_commit_info.date < cutoff_time {
+        if head_commit_info.date < since {
             return Ok(LogResult::None(head_commit_info));
         }
 
@@ -165,7 +162,7 @@ impl GitStore {
             let info = info?;
             let commit = info.object()?;
             let commit_info = with_cache.commit_info(&commit)?;
-            if commit_info.date < cutoff_time {
+            if commit_info.date < since {
                 break;
             }
             res.push(commit_info);

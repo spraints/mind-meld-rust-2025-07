@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use crate::config::StoreConfig;
 use crate::project::{self, ProjectID};
@@ -146,7 +146,7 @@ impl StoreInstance {
         }
     }
 
-    fn log(&self, since: Duration) -> Result<LogResult, Box<dyn Error + 'static>> {
+    fn log(&self, since: SystemTime) -> Result<LogResult, Box<dyn Error + 'static>> {
         match self {
             Self::Git(s) => s.log(since),
         }
@@ -177,7 +177,7 @@ impl Store {
         self.inst.untrack(id, message)
     }
 
-    pub fn log(&self, since: Duration) -> Result<LogResult, Box<dyn Error>> {
+    pub fn log(&self, since: SystemTime) -> Result<LogResult, Box<dyn Error>> {
         self.inst.log(since)
     }
 }

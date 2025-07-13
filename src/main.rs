@@ -486,8 +486,7 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
         }
     };
 
-    // Get the log
-    match store.log(since) {
+    match store.log(SystemTime::now() - since) {
         Err(e) => {
             eprintln!("Failed to get log: {}", e);
             exit(1);
