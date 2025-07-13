@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use crate::config::StoreConfig;
 use crate::project::{self, ProjectID};
@@ -31,7 +31,7 @@ pub type CommitResult = Result<&'static str, Box<dyn Error>>;
 #[derive(Debug)]
 pub struct CommitInfo {
     pub hash: String,
-    pub date: std::time::SystemTime,
+    pub date: SystemTime,
     pub message: String,
 }
 

@@ -3,11 +3,12 @@ use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use gix::bstr::ByteSlice;
-use gix::{ObjectId, Tree, object::tree, objs::tree::EntryKind, revision::walk::Sorting};
+use gix::object::tree;
+use gix::objs::tree::EntryKind;
+use gix::revision::walk::Sorting;
+use gix::{ObjectId, Tree};
 
-use crate::project::{
-    ArchiveEntry, ArchiveEntryContents, ProjectID, RawArchive, RawProject, program_git,
-};
+use crate::project::*;
 
 pub fn open<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
     let r = gix::discover(&p)?;
