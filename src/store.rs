@@ -39,6 +39,7 @@ pub struct CommitInfo {
     pub hash: String,
     pub date: SystemTime,
     pub message: String,
+    pub changed_projects: Vec<ProjectID>,
 }
 
 fn store_type(t: &str) -> Result<StoreType, String> {

@@ -506,6 +506,9 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
                     format_datetime(commit.date),
                     commit.message
                 );
+                for proj_id in commit.changed_projects {
+                    println!("  +/- {proj_id}");
+                }
             }
         }
     };

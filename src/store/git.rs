@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -6,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use gix::object::tree;
 use gix::objs::tree::EntryKind;
 use gix::revision::walk::Sorting;
-use gix::{Commit, ObjectId, Tree};
+use gix::{Commit, Id, ObjectId, Tree};
 
 use crate::project::*;
 
@@ -22,6 +23,11 @@ pub fn create<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
 
 pub struct GitStore {
     r: gix::Repository,
+}
+
+struct VersionedProjectID<'a> {
+    id: Id<'a>,
+    proj_id: ProjectID,
 }
 
 impl GitStore {
@@ -40,17 +46,36 @@ impl GitStore {
         if self.r.head()?.is_unborn() {
             return Ok(Vec::new());
         }
+        self.project_ids_from_commit(&self.r.head_commit()?)
+    }
+
+    fn project_ids_from_commit(&self, commit: &Commit) -> Result<Vec<ProjectID>, Box<dyn Error>> {
+        Ok(self
+            .versioned_project_ids_from_commit(commit)?
+            .into_iter()
+            .map(|vpi| vpi.proj_id)
+            .collect())
+    }
+
+    fn versioned_project_ids_from_commit<'a>(
+        &'a self,
+        commit: &'a Commit,
+    ) -> Result<Vec<VersionedProjectID<'a>>, Box<dyn Error>> {
         let mut res = Vec::new();
-        for e in self.r.head_commit()?.tree()?.iter() {
+        for e in commit.tree()?.iter() {
             let e = e?;
             match (e.mode().is_tree(), program_git(e.filename())) {
                 (false, _) => (), // skip
                 (true, p) => {
                     let p = p?;
                     for proj in e.object()?.try_into_tree()?.iter() {
-                        res.push(ProjectID {
-                            program: p,
-                            name: proj?.filename().to_string(),
+                        let proj = proj?;
+                        res.push(VersionedProjectID {
+                            id: proj.id(),
+                            proj_id: ProjectID {
+                                program: p,
+                                name: proj.filename().to_string(),
+                            },
                         });
                     }
                 }
@@ -183,11 +208,54 @@ impl GitStore {
             Err(e) => Cow::from(format!("error getting commit message: {e}")),
         }
         .to_string();
+        let changed_projects = self.get_changes(commit)?;
         Ok(super::CommitInfo {
             hash,
             date,
             message,
+            changed_projects,
         })
+    }
+
+    fn get_changes(&self, commit: &Commit) -> Result<Vec<ProjectID>, Box<dyn Error>> {
+        let mut parent_ids = commit.parent_ids();
+        let first_parent = parent_ids.next();
+        let second_parent = parent_ids.next();
+        match (first_parent, second_parent) {
+            // Ignore if it's a merge commit.
+            (_, Some(_)) => Ok(Vec::new()),
+            // If it's a normal commit with one parent, show the diff.
+            (Some(id), None) => self.get_changes2(commit, &id.object()?.try_into_commit()?),
+            // It's a root commit, diff against the empty tree.
+            (None, None) => self.project_ids_from_commit(commit),
+        }
+    }
+
+    fn get_changes2(
+        &self,
+        new_commit: &Commit,
+        old_commit: &Commit,
+    ) -> Result<Vec<ProjectID>, Box<dyn Error>> {
+        let mut changed_projects = Vec::new();
+        let mut new_project_versions: HashMap<ProjectID, Id> = self
+            .versioned_project_ids_from_commit(new_commit)?
+            .into_iter()
+            .map(|vpi| (vpi.proj_id, vpi.id))
+            .collect();
+        for vpi in self.versioned_project_ids_from_commit(old_commit)? {
+            let VersionedProjectID {
+                proj_id,
+                id: old_id,
+            } = vpi;
+            match new_project_versions.remove(&proj_id) {
+                Some(new_id) if new_id == old_id => {}
+                _ => changed_projects.push(proj_id),
+            };
+        }
+        for (proj_id, _) in new_project_versions {
+            changed_projects.push(proj_id);
+        }
+        Ok(changed_projects)
     }
 
     fn path_for(id: &ProjectID) -> String {

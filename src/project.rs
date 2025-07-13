@@ -9,7 +9,7 @@ use zip::ZipArchive;
 
 use crate::dirs::Dirs;
 
-#[derive(Eq, Hash, PartialEq, Clone, Copy)]
+#[derive(Eq, Hash, PartialEq, Clone, Copy, Debug)]
 pub enum Program {
     Mindstorms,
     Spike,
@@ -57,7 +57,7 @@ pub fn program_git(name: &gix::bstr::BStr) -> Result<Program, String> {
     }
 }
 
-#[derive(Eq, Hash, PartialEq, Clone)]
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub struct ProjectID {
     pub(crate) program: Program,
     pub(crate) name: String,
