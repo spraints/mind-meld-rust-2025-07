@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::fmt::Display;
 use std::fs;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
@@ -25,14 +26,20 @@ pub struct StoreConfig {
 
 impl Display for StoreConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let path = match std::env::current_dir() {
-            Err(_) => self.path.to_string_lossy().to_string(),
-            Ok(pwd) => match pathdiff::diff_paths(&self.path, &pwd) {
-                None => self.path.to_string_lossy().to_string(),
-                Some(rel) => rel.to_string_lossy().to_string(),
+        let path = self.relpath();
+        write!(f, "{} ({})", path.display(), self.store_type)
+    }
+}
+
+impl StoreConfig {
+    pub fn relpath(&self) -> Cow<Path> {
+        match std::env::current_dir() {
+            Err(_) => Cow::from(&self.path),
+            Ok(pwd) => match pathdiff::diff_paths(&self.path, pwd) {
+                None => Cow::from(&self.path),
+                Some(rel) => Cow::from(rel),
             },
-        };
-        write!(f, "{} ({})", path, self.store_type)
+        }
     }
 }
 

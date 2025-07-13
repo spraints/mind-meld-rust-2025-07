@@ -454,12 +454,7 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
                 exit(1);
             });
 
-            let matching_store = cfg.stores.iter().find(|s| {
-                std::path::absolute(&s.path)
-                    .map(|p| p == store_path)
-                    .unwrap_or(false)
-            });
-
+            let matching_store = cfg.stores.iter().find(|s| s.path == store_path);
             match matching_store {
                 Some(s) => s,
                 None => {
@@ -475,7 +470,7 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
             } else {
                 eprintln!("Multiple stores available. Please specify one with --store:");
                 for store in &cfg.stores {
-                    println!("  {}", store.path.display());
+                    println!("  {}", store.relpath().display());
                 }
                 exit(1);
             }
@@ -486,11 +481,7 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
     let store = match store::open(target_store) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!(
-                "Failed to open store {}: {}",
-                target_store.path.display(),
-                e
-            );
+            println!("  {target_store}: error opening store: {e}");
             exit(1);
         }
     };
