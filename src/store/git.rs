@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::error::Error;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -6,7 +7,7 @@ use gix::bstr::ByteSlice;
 use gix::object::tree;
 use gix::objs::tree::EntryKind;
 use gix::revision::walk::Sorting;
-use gix::{ObjectId, Tree};
+use gix::{Commit, ObjectId, Tree};
 
 use crate::project::*;
 
@@ -28,6 +29,12 @@ impl GitStore {
     fn new(r: gix::Repository) -> Result<Self, Box<dyn Error>> {
         validate(&r)?;
         Ok(Self { r })
+    }
+
+    fn clone_with_cache(&self) -> Self {
+        let mut r = self.r.clone();
+        r.object_cache_size(Some(1024 * 1024));
+        Self { r }
     }
 
     pub fn project_ids(&self) -> Result<Vec<ProjectID>, Box<dyn Error + 'static>> {
@@ -131,46 +138,59 @@ impl GitStore {
         }
     }
 
-    pub fn log(&self, since: Duration) -> Result<Vec<crate::store::CommitInfo>, Box<dyn Error>> {
+    pub fn log(&self, since: Duration) -> Result<super::LogResult, Box<dyn Error>> {
+        use super::LogResult;
         if self.r.head()?.is_unborn() {
-            return Ok(Vec::new());
+            return Ok(LogResult::Unborn);
         }
 
         let cutoff_time = SystemTime::now() - since;
-        let mut commits = Vec::new();
 
         let head_commit = self.r.head_commit()?;
-        let revwalk = self
+        let head_commit_info = self.commit_info(&head_commit)?;
+        if head_commit_info.date < cutoff_time {
+            return Ok(LogResult::None(head_commit_info));
+        }
+
+        let with_cache = self.clone_with_cache();
+
+        let revwalk = with_cache
             .r
-            .rev_walk(Some(head_commit.id))
+            .rev_walk(Some(with_cache.r.head_commit()?.id()))
             .sorting(Sorting::ByCommitTime(Default::default()));
         let commit_infos = revwalk.all()?;
 
+        let mut res = Vec::new();
         for info in commit_infos {
             let info = info?;
-            let commit_id = info.id;
-            let commit_time = match info.commit_time {
-                Some(secs) => secs,
-                None => continue,
-            };
-            let commit_system_time = UNIX_EPOCH + Duration::from_secs(commit_time as u64);
-            if commit_system_time < cutoff_time {
+            let commit = info.object()?;
+            let commit_info = with_cache.commit_info(&commit)?;
+            if commit_info.date < cutoff_time {
                 break;
             }
-            let commit = self.r.find_object(commit_id)?.try_into_commit()?;
-            let hash = commit_id.to_string();
-            let message = match commit.message() {
-                Ok(m) => m.body.as_ref().map(|b| b.as_bytes()).unwrap_or_default(),
-                Err(_) => b"",
-            };
-            let message = std::str::from_utf8(message).unwrap_or("");
-            commits.push(crate::store::CommitInfo {
-                hash: hash[..8].to_string(),
-                date: commit_system_time,
-                message: message.lines().next().unwrap_or("").to_string(),
-            });
+            res.push(commit_info);
         }
-        Ok(commits)
+
+        Ok(LogResult::Some(res))
+    }
+
+    fn commit_info(&self, commit: &Commit) -> Result<super::CommitInfo, Box<dyn Error>> {
+        let author_time = commit.author()?.time()?;
+        let date = UNIX_EPOCH + Duration::from_secs(author_time.seconds as u64);
+        let hash = format!("{}", commit.id().shorten_or_id());
+        let message = match commit.message() {
+            Ok(m) => match str::from_utf8(m.title) {
+                Ok(s) => Cow::from(s),
+                Err(e) => Cow::from(format!("error parsing commit message: {e}")),
+            },
+            Err(e) => Cow::from(format!("error getting commit message: {e}")),
+        }
+        .to_string();
+        Ok(super::CommitInfo {
+            hash,
+            date,
+            message,
+        })
     }
 
     fn path_for(id: &ProjectID) -> String {

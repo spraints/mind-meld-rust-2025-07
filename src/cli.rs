@@ -44,7 +44,7 @@ pub struct StatusCommand {
 pub struct LogCommand {
     /// Duration to look back (e.g., "1d", "2w", "1h")
     #[arg(long, default_value = "1d", value_parser = parse_duration)]
-    pub duration: Duration,
+    pub since: Duration,
 
     /// Store to show logs from (if not specified, uses the only store if there's just one)
     #[arg(long)]

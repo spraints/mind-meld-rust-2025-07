@@ -28,6 +28,12 @@ type StoreErrors = Vec<(StoreConfig, Box<dyn Error>)>;
 
 pub type CommitResult = Result<&'static str, Box<dyn Error>>;
 
+pub enum LogResult {
+    Unborn,
+    None(CommitInfo), // returns the newest commit
+    Some(Vec<CommitInfo>),
+}
+
 #[derive(Debug)]
 pub struct CommitInfo {
     pub hash: String,
@@ -140,7 +146,7 @@ impl StoreInstance {
         }
     }
 
-    fn log(&self, since: Duration) -> Result<Vec<CommitInfo>, Box<dyn Error + 'static>> {
+    fn log(&self, since: Duration) -> Result<LogResult, Box<dyn Error + 'static>> {
         match self {
             Self::Git(s) => s.log(since),
         }
@@ -171,7 +177,7 @@ impl Store {
         self.inst.untrack(id, message)
     }
 
-    pub fn log(&self, since: Duration) -> Result<Vec<CommitInfo>, Box<dyn Error>> {
+    pub fn log(&self, since: Duration) -> Result<LogResult, Box<dyn Error>> {
         self.inst.log(since)
     }
 }

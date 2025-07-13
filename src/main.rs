@@ -12,7 +12,7 @@ mod untrack;
 use std::collections::HashMap;
 use std::process::exit;
 use std::rc::Rc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use clap::Parser;
 use config::Config;
@@ -437,7 +437,7 @@ fn cmd_auto_commit(cfg: Config) {
 }
 
 fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
-    let cli::LogCommand { duration, store } = cmd;
+    let cli::LogCommand { since, store } = cmd;
 
     if cfg.stores.is_empty() {
         println!("No stores yet!");
@@ -487,23 +487,58 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
     };
 
     // Get the log
-    let commits = match store.log(duration) {
-        Ok(c) => c,
+    match store.log(since) {
         Err(e) => {
             eprintln!("Failed to get log: {}", e);
             exit(1);
         }
+        Ok(store::LogResult::Unborn) => println!("No commits in this store."),
+        Ok(store::LogResult::None(newest_commit)) => println!(
+            "No commits in the last {}, newest commit is {} old.",
+            format_duration_ago(since),
+            format_time_ago(newest_commit.date)
+        ),
+        Ok(store::LogResult::Some(commits)) => {
+            for commit in commits {
+                println!(
+                    "{} {} ({}) {}",
+                    commit.hash,
+                    format_time_ago(commit.date),
+                    format_datetime(commit.date),
+                    commit.message
+                );
+            }
+        }
     };
+}
 
-    if commits.is_empty() {
-        println!("No commits found in the last {:?}", duration);
-        return;
+const SECONDS_IN_MINUTE: u64 = 60;
+const SECONDS_IN_HOUR: u64 = 60 * SECONDS_IN_MINUTE;
+const SECONDS_IN_DAY: u64 = 24 * SECONDS_IN_HOUR;
+const SECONDS_IN_WEEK: u64 = 7 * SECONDS_IN_DAY;
+
+fn format_time_ago(time: SystemTime) -> String {
+    match SystemTime::now().duration_since(time) {
+        Ok(d) => format_duration_ago(d),
+        Err(e) => format!("(?? {e} ??)"),
     }
+}
 
-    // Print the commits
-    for commit in commits {
-        let date_str = format_datetime(commit.date);
-        println!("{} {} {}", commit.hash, date_str, commit.message);
+fn format_duration_ago(d: Duration) -> String {
+    match d {
+        d if d >= Duration::from_secs(SECONDS_IN_WEEK) => {
+            format!("{}w", d.as_secs() / SECONDS_IN_WEEK)
+        }
+        d if d >= Duration::from_secs(SECONDS_IN_DAY) => {
+            format!("{}d", d.as_secs() / SECONDS_IN_DAY)
+        }
+        d if d >= Duration::from_secs(SECONDS_IN_HOUR) => {
+            format!("{}h", d.as_secs() / SECONDS_IN_HOUR)
+        }
+        d if d >= Duration::from_secs(SECONDS_IN_MINUTE) => {
+            format!("{}m", d.as_secs() / SECONDS_IN_MINUTE)
+        }
+        d => format!("{d:?}"),
     }
 }
 
