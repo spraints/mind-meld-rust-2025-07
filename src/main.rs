@@ -10,6 +10,7 @@ mod track;
 mod untrack;
 
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::process::exit;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
@@ -491,42 +492,9 @@ fn do_auto_commit(
 fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
     let cli::LogCommand { since, store } = cmd;
 
-    if cfg.stores.is_empty() {
-        println!("No stores yet!");
-        println!("Get started by running '{} store create'.", exe());
-        return;
-    }
-
-    // Determine which store to use
-    let target_store = match store {
-        Some(store_path) => {
-            // Find the store that matches the provided path
-            let store_path = std::path::absolute(store_path).unwrap_or_else(|_| {
-                eprintln!("Invalid store path");
-                exit(1);
-            });
-
-            let matching_store = cfg.stores.iter().find(|s| s.path == store_path);
-            match matching_store {
-                Some(s) => s,
-                None => {
-                    eprintln!("Store not found: {}", store_path.display());
-                    exit(1);
-                }
-            }
-        }
-        None => {
-            // Use the only store if there's just one
-            if cfg.stores.len() == 1 {
-                &cfg.stores[0]
-            } else {
-                eprintln!("Multiple stores available. Please specify one with --store:");
-                for store in &cfg.stores {
-                    println!("  {}", store.relpath().display());
-                }
-                exit(1);
-            }
-        }
+    let target_store = match get_single_store(&cfg, store) {
+        None => exit(1),
+        Some(s) => s,
     };
 
     // Open the store
@@ -564,6 +532,49 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
             }
         }
     };
+}
+
+fn get_single_store(cfg: &config::Config, store: Option<PathBuf>) -> Option<&StoreConfig> {
+    if cfg.stores.is_empty() {
+        println!("No stores yet!");
+        println!("Get started by running '{} store create'.", exe());
+        return None;
+    }
+
+    // Determine which store to use
+    match store {
+        Some(store_path) => {
+            // Find the store that matches the provided path
+            match std::path::absolute(store_path) {
+                Err(_) => {
+                    eprintln!("Invalid store path");
+                    None
+                }
+                Ok(store_path) => {
+                    let matching_store = cfg.stores.iter().find(|s| s.path == store_path);
+                    match matching_store {
+                        Some(s) => Some(s),
+                        None => {
+                            eprintln!("Store not found: {}", store_path.display());
+                            None
+                        }
+                    }
+                }
+            }
+        }
+        None => {
+            // Use the only store if there's just one
+            if cfg.stores.len() == 1 {
+                Some(&cfg.stores[0])
+            } else {
+                eprintln!("Multiple stores available. Please specify one with --store:");
+                for store in &cfg.stores {
+                    println!("  {}", store.relpath().display());
+                }
+                None
+            }
+        }
+    }
 }
 
 const SECONDS_IN_MINUTE: u64 = 60;
