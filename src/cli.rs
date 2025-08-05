@@ -31,11 +31,17 @@ pub enum Commands {
     AutoCommit(AutoCommitCommand),
     /// Show commit history
     Log(LogCommand),
-    // todo: render to file
-    // todo: render in GUI (?)
-    // todo: render in browser (?)
-    // todo: render to branch (can do automatically)
-    // todo: render diff (given a commit id and store)
+    /// Render tracked projects to a directory
+    Render(RenderCommand),
+    /*
+     * todo: render to file
+     * todo: render in GUI (?)
+     * todo: render in browser (?)
+     * todo: render to branch (can do automatically)
+     * todo: render diff (given a commit id and store)
+     * todo: revert to a specific version
+     * todo: accept python branch
+     */
 }
 
 #[derive(Args, Debug, Default)]
@@ -134,4 +140,18 @@ pub struct AutoCommitCommand {
     /// Minimum interval between commits
     #[arg(long, default_value = "30s", value_parser = parse_duration)]
     pub interval: Duration,
+}
+
+#[derive(Args, Debug)]
+pub struct RenderCommand {
+    #[arg(short, long)]
+    pub out_dir: PathBuf,
+
+    /// Which store to pull data from (must be specified if there's more than one store configured)
+    #[arg(long)]
+    pub store: Option<PathBuf>,
+
+    // Which revision to render (default is the most recent commit)
+    #[arg(long)]
+    pub revision: Option<String>,
 }

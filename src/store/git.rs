@@ -87,15 +87,26 @@ impl GitStore {
     pub(crate) fn read_project(
         &self,
         id: &ProjectID,
+        revision: Option<&str>,
     ) -> Result<Option<RawProject>, Box<dyn Error>> {
-        match self.r.head_commit() {
-            Err(_) => Ok(None),
-            Ok(c) => match c.tree()?.lookup_entry_by_path(Self::path_for(id))? {
-                None => Ok(None),
-                Some(e) => Ok(Some(RawProject {
-                    archive: self.tree_to_archive(e.object()?.try_into_tree()?)?,
-                })),
+        let commit = match revision {
+            None => match self.r.head_commit() {
+                Ok(c) => c,
+                // If there is no head commit, behave as if the project simply wasn't found.
+                Err(_) => return Ok(None),
             },
+            Some(rev) => {
+                let id = self.r.rev_parse_single(rev)?;
+                let obj = id.object()?;
+                obj.try_into_commit()?
+            }
+        };
+
+        match commit.tree()?.lookup_entry_by_path(Self::path_for(id))? {
+            None => Ok(None),
+            Some(e) => Ok(Some(RawProject {
+                archive: self.tree_to_archive(e.object()?.try_into_tree()?)?,
+            })),
         }
     }
 

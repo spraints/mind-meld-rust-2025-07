@@ -135,9 +135,10 @@ impl StoreInstance {
     fn read_project(
         &self,
         id: &ProjectID,
+        revision: Option<&str>,
     ) -> Result<Option<project::RawProject>, Box<dyn Error + 'static>> {
         match self {
-            Self::Git(s) => s.read_project(id),
+            Self::Git(s) => s.read_project(id, revision),
         }
     }
 
@@ -162,8 +163,9 @@ impl Store {
     pub fn read_project(
         &self,
         id: &ProjectID,
+        revision: Option<&str>,
     ) -> Result<Option<project::RawProject>, Box<dyn Error>> {
-        self.inst.read_project(id)
+        self.inst.read_project(id, revision)
     }
 
     pub(crate) fn commit(

@@ -4,6 +4,7 @@ mod commit;
 mod config;
 mod dirs;
 mod project;
+mod render;
 mod status;
 mod store;
 mod track;
@@ -37,6 +38,7 @@ fn main() {
             cmd_auto_commit(auto_commit_cmd, config);
         }
         Some(cli::Commands::Log(log_cmd)) => cmd_log(log_cmd, config),
+        Some(cli::Commands::Render(render_cmd)) => cmd_render(render_cmd, config),
     }
 }
 
@@ -531,6 +533,29 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
                 }
             }
         }
+    };
+}
+
+fn cmd_render(opts: cli::RenderCommand, cfg: config::Config) {
+    let cli::RenderCommand {
+        out_dir,
+        store,
+        revision,
+    } = opts;
+    let target_store = match get_single_store(&cfg, store) {
+        None => exit(1),
+        Some(s) => s,
+    };
+    let store = match store::open(target_store) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("{target_store}: error opening store: {e}");
+            exit(1);
+        }
+    };
+    match render::render_all_projects(render::fs::out_dir(out_dir), store, revision) {
+        Ok(_) => (),
+        Err(e) => println!("error: {e}"),
     };
 }
 

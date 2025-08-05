@@ -27,7 +27,7 @@ pub fn get_status(
 
     let mut diff = Vec::new();
     for st in stores {
-        match st.read_project(proj) {
+        match st.read_project(proj, None) {
             Err(_) => diff.push(st.clone()),
             Ok(None) => diff.push(st.clone()),
             Ok(Some(st_proj)) => {
