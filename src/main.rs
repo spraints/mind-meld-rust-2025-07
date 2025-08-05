@@ -9,16 +9,17 @@ mod store;
 mod track;
 mod untrack;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::exit;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 
 use clap::Parser;
 use config::Config;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify_debouncer_full::notify::{Error, RecursiveMode};
+use notify_debouncer_full::{new_debouncer, DebounceEventResult, DebouncedEvent};
 use project::ProjectID;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::channel;
 use store::Store;
 
 fn main() {
@@ -358,9 +359,12 @@ fn cmd_auto_commit(cfg: Config) {
         project_paths.insert(path, proj_id);
     }
 
-    // TODO - debouncer
-
     // Set up file watcher
+    enum AutoCommitEvent {
+        DebouncedEvent(Vec<DebouncedEvent>),
+        WatchError(Error),
+        ControlC,
+    }
     let (tx, rx) = channel();
 
     {
@@ -370,11 +374,28 @@ fn cmd_auto_commit(cfg: Config) {
         });
     }
 
-    let eh = AutoCommitNotifyEventHandler { tx };
-    let mut watcher = RecommendedWatcher::new(eh, Default::default()).unwrap();
+    let mut debouncer = {
+        let tx = tx.clone();
+        new_debouncer(
+            Duration::from_secs(5),
+            Some(Duration::from_millis(100)),
+            move |res: DebounceEventResult| match res {
+                Ok(events) => {
+                    let _ = tx.send(AutoCommitEvent::DebouncedEvent(events));
+                }
+                Err(errs) => {
+                    for err in errs {
+                        let _ = tx.send(AutoCommitEvent::WatchError(err));
+                    }
+                }
+            },
+        )
+        .unwrap()
+    };
+
     let mut any_watches = false;
     for path in project_paths.keys() {
-        match watcher.watch(path, RecursiveMode::NonRecursive) {
+        match debouncer.watch(path, RecursiveMode::NonRecursive) {
             Err(e) => println!("{path:?}: failed to watch: {e}"),
             Ok(_) => any_watches = true,
         };
@@ -387,21 +408,21 @@ fn cmd_auto_commit(cfg: Config) {
 
     for res in rx {
         match res {
-            AutoCommitEvent::Notify(Ok(event)) => {
-                let proj_ids =
-                    event
-                        .paths
-                        .iter()
-                        .filter_map(|path| match project_paths.get(path) {
+            AutoCommitEvent::DebouncedEvent(events) => {
+                let mut proj_ids = HashSet::new();
+                for e in events {
+                    for p in &e.paths {
+                        match project_paths.get(p) {
                             Some(x) => {
-                                println!("{x}: {:?}", event.kind);
-                                Some(x)
+                                println!("{x}: {:?}", e.kind);
+                                proj_ids.insert(x);
                             }
                             None => {
-                                println!("unexpected {:?}: {:?}", event.kind, path);
-                                None
+                                println!("unexpected {:?}: {:?}", e.kind, p);
                             }
-                        });
+                        };
+                    }
+                }
 
                 let (stores, err_stores) = store::open_all(&cfg.stores);
                 for (st, e) in err_stores {
@@ -440,24 +461,9 @@ fn cmd_auto_commit(cfg: Config) {
                 }
                 println!();
             }
-            AutoCommitEvent::Notify(Err(e)) => println!("watch error: {e}"),
+            AutoCommitEvent::WatchError(e) => println!("watch error: {e}"),
             AutoCommitEvent::ControlC => break,
         }
-    }
-}
-
-enum AutoCommitEvent {
-    Notify(notify::Result<notify::Event>),
-    ControlC,
-}
-
-struct AutoCommitNotifyEventHandler {
-    tx: Sender<AutoCommitEvent>,
-}
-
-impl notify::EventHandler for AutoCommitNotifyEventHandler {
-    fn handle_event(&mut self, event: notify::Result<notify::Event>) {
-        let _ = self.tx.send(AutoCommitEvent::Notify(event));
     }
 }
 
