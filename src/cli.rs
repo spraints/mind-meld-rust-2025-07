@@ -31,6 +31,11 @@ pub enum Commands {
     AutoCommit,
     /// Show commit history
     Log(LogCommand),
+    // todo: render to file
+    // todo: render in GUI (?)
+    // todo: render in browser (?)
+    // todo: render to branch (can do automatically)
+    // todo: render diff (given a commit id and store)
 }
 
 #[derive(Args, Debug, Default)]
