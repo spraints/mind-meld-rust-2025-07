@@ -15,7 +15,7 @@ use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 
 use clap::Parser;
-use config::Config;
+use config::{Config, StoreConfig};
 use notify_debouncer_full::notify::{Error, RecursiveMode};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, DebouncedEvent};
 use project::ProjectID;
@@ -354,7 +354,7 @@ fn cmd_auto_commit(cfg: Config) {
 
     // Build a map of project id to file path
     let mut project_paths = HashMap::new();
-    for proj_id in tracked_projects {
+    for proj_id in &tracked_projects {
         let path = proj_id.path(&dirs);
         project_paths.insert(path, proj_id);
     }
@@ -377,8 +377,8 @@ fn cmd_auto_commit(cfg: Config) {
     let mut debouncer = {
         let tx = tx.clone();
         new_debouncer(
-            Duration::from_secs(5),
-            Some(Duration::from_millis(100)),
+            Duration::from_secs(30),
+            Some(Duration::from_secs(1)),
             move |res: DebounceEventResult| match res {
                 Ok(events) => {
                     let _ = tx.send(AutoCommitEvent::DebouncedEvent(events));
@@ -409,13 +409,18 @@ fn cmd_auto_commit(cfg: Config) {
     for res in rx {
         match res {
             AutoCommitEvent::DebouncedEvent(events) => {
+                println!(
+                    "[{}] Auto-committing changed projects:",
+                    chrono::Local::now()
+                );
+
                 let mut proj_ids = HashSet::new();
                 for e in events {
                     for p in &e.paths {
                         match project_paths.get(p) {
                             Some(x) => {
                                 println!("{x}: {:?}", e.kind);
-                                proj_ids.insert(x);
+                                proj_ids.insert((*x).clone());
                             }
                             None => {
                                 println!("unexpected {:?}: {:?}", e.kind, p);
@@ -429,41 +434,56 @@ fn cmd_auto_commit(cfg: Config) {
                     println!("{st}! error opening store: {e}")
                 }
 
-                let commit::CommitResult {
-                    missing_projects,
-                    project_read_errors,
-                    store_results,
-                } = commit::commit(
-                    &stores,
-                    &dirs,
-                    proj_ids,
-                    "Update tracked projects via auto-commit",
-                );
-
-                for proj_id in missing_projects {
-                    println!("Project {proj_id} is now missing.");
-                    println!("  To stop tracking it, run:");
-                    println!(
-                        "    {} untrack --{} {:?}",
-                        exe(),
-                        proj_id.program,
-                        proj_id.name
-                    );
-                }
-                for (proj_id, e) in project_read_errors {
-                    println!("{proj_id}: error reading project: {e}");
-                }
-                for (st, res) in store_results {
-                    match res {
-                        Ok(msg) => println!("{st}: {msg}"),
-                        Err(e) => println!("{st}! {e}"),
-                    };
-                }
+                do_auto_commit(&stores, &dirs, &proj_ids);
                 println!();
             }
             AutoCommitEvent::WatchError(e) => println!("watch error: {e}"),
-            AutoCommitEvent::ControlC => break,
+            AutoCommitEvent::ControlC => {
+                println!(
+                    "[{}] Auto-committing changed projects on shutdown:",
+                    chrono::Local::now()
+                );
+                do_auto_commit(&stores, &dirs, &tracked_projects);
+                return;
+            }
         }
+    }
+}
+
+fn do_auto_commit(
+    stores: &[(StoreConfig, Store)],
+    dirs: &dirs::Dirs,
+    proj_ids: &HashSet<ProjectID>,
+) {
+    let commit::CommitResult {
+        missing_projects,
+        project_read_errors,
+        store_results,
+    } = commit::commit(
+        &stores,
+        &dirs,
+        proj_ids,
+        "Update tracked projects via auto-commit",
+    );
+
+    for proj_id in missing_projects {
+        println!("Project {proj_id} is now missing.");
+        println!("  To stop tracking it, run:");
+        println!(
+            "    {} untrack --{} {:?}",
+            exe(),
+            proj_id.program,
+            proj_id.name
+        );
+    }
+    for (proj_id, e) in project_read_errors {
+        println!("{proj_id}: error reading project: {e}");
+    }
+    for (st, res) in store_results {
+        match res {
+            Ok(msg) => println!("{st}: {msg}"),
+            Err(e) => println!("{st}! {e}"),
+        };
     }
 }
 
