@@ -69,9 +69,9 @@ fn parse_duration(s: &str) -> Result<Duration, String> {
     match unit {
         "s" => Ok(Duration::from_secs(num)),
         "m" => Ok(Duration::from_secs(num * 60)),
-        "h" => Ok(Duration::from_secs(num * 3600)),
-        "d" => Ok(Duration::from_secs(num * 86400)),
-        "w" => Ok(Duration::from_secs(num * 604800)),
+        "h" => Ok(Duration::from_secs(num * 60 * 60)),
+        "d" => Ok(Duration::from_secs(num * 24 * 60 * 60)),
+        "w" => Ok(Duration::from_secs(num * 7 * 24 * 60 * 60)),
         _ => Err(format!("invalid duration unit: {}", unit)),
     }
 }
