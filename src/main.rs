@@ -32,8 +32,8 @@ fn main() {
         Some(cli::Commands::Track(track_cmd)) => cmd_track(track_cmd, config),
         Some(cli::Commands::Untrack(untrack_cmd)) => cmd_untrack(untrack_cmd, config),
         Some(cli::Commands::Commit) => cmd_commit(config),
-        Some(cli::Commands::AutoCommit) => {
-            cmd_auto_commit(config);
+        Some(cli::Commands::AutoCommit(auto_commit_cmd)) => {
+            cmd_auto_commit(auto_commit_cmd, config);
         }
         Some(cli::Commands::Log(log_cmd)) => cmd_log(log_cmd, config),
     }
@@ -327,7 +327,8 @@ fn cmd_commit(cfg: Config) {
     }
 }
 
-fn cmd_auto_commit(cfg: Config) {
+fn cmd_auto_commit(opts: cli::AutoCommitCommand, cfg: Config) {
+    let cli::AutoCommitCommand { interval } = opts;
     let dirs = dirs::Dirs::new(&cfg).unwrap();
 
     if cfg.stores.is_empty() {
@@ -377,8 +378,8 @@ fn cmd_auto_commit(cfg: Config) {
     let mut debouncer = {
         let tx = tx.clone();
         new_debouncer(
-            Duration::from_secs(30),
-            Some(Duration::from_secs(1)),
+            interval,
+            Some(Duration::from_millis(500)),
             move |res: DebounceEventResult| match res {
                 Ok(events) => {
                     let _ = tx.send(AutoCommitEvent::DebouncedEvent(events));

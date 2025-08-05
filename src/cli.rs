@@ -28,7 +28,7 @@ pub enum Commands {
     /// Commit changes
     Commit,
     /// Automatically commit changes as they happen
-    AutoCommit,
+    AutoCommit(AutoCommitCommand),
     /// Show commit history
     Log(LogCommand),
     // todo: render to file
@@ -127,4 +127,11 @@ pub struct UntrackCommand {
     pub mindstorms: bool,
 
     pub file_name: PathBuf,
+}
+
+#[derive(Args, Debug)]
+pub struct AutoCommitCommand {
+    /// Minimum interval between commits
+    #[arg(long, default_value = "30s", value_parser = parse_duration)]
+    pub interval: Duration,
 }
