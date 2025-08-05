@@ -18,7 +18,7 @@ use clap::Parser;
 use config::Config;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use project::ProjectID;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Sender};
 use store::Store;
 
 fn main() {
@@ -358,11 +358,20 @@ fn cmd_auto_commit(cfg: Config) {
         project_paths.insert(path, proj_id);
     }
 
-    // TODO - handle ctrl-C for graceful shutdown.
+    // TODO - debouncer
 
     // Set up file watcher
     let (tx, rx) = channel();
-    let mut watcher = RecommendedWatcher::new(tx, Default::default()).unwrap();
+
+    {
+        let tx = tx.clone();
+        let _ = ctrlc::set_handler(move || {
+            let _ = tx.send(AutoCommitEvent::ControlC);
+        });
+    }
+
+    let eh = AutoCommitNotifyEventHandler { tx };
+    let mut watcher = RecommendedWatcher::new(eh, Default::default()).unwrap();
     let mut any_watches = false;
     for path in project_paths.keys() {
         match watcher.watch(path, RecursiveMode::NonRecursive) {
@@ -378,7 +387,7 @@ fn cmd_auto_commit(cfg: Config) {
 
     for res in rx {
         match res {
-            Ok(event) => {
+            AutoCommitEvent::Notify(Ok(event)) => {
                 let proj_ids =
                     event
                         .paths
@@ -431,8 +440,24 @@ fn cmd_auto_commit(cfg: Config) {
                 }
                 println!();
             }
-            Err(e) => println!("watch error: {e}"),
+            AutoCommitEvent::Notify(Err(e)) => println!("watch error: {e}"),
+            AutoCommitEvent::ControlC => break,
         }
+    }
+}
+
+enum AutoCommitEvent {
+    Notify(notify::Result<notify::Event>),
+    ControlC,
+}
+
+struct AutoCommitNotifyEventHandler {
+    tx: Sender<AutoCommitEvent>,
+}
+
+impl notify::EventHandler for AutoCommitNotifyEventHandler {
+    fn handle_event(&mut self, event: notify::Result<notify::Event>) {
+        let _ = self.tx.send(AutoCommitEvent::Notify(event));
     }
 }
 
