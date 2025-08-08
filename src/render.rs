@@ -4,9 +4,7 @@ pub mod txt;
 use std::error::Error;
 use std::path::PathBuf;
 
-use crate::project::{
-    types::ProjectType, Project, ProjectID, RawProject,
-};
+use crate::project::{types::ProjectType, Project, ProjectID, RawProject};
 
 pub(crate) fn render_all_projects(
     dest: impl RenderDest,
@@ -14,12 +12,13 @@ pub(crate) fn render_all_projects(
     store: crate::store::Store,
     revision: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
+    dest.pre_flight()?;
     let rev = revision.as_deref();
     for proj_id in store.project_ids()? {
         match store.read_project(&proj_id, rev)? {
             None => println!("{proj_id}! missing, oddly."),
             Some(p) => match render_project(&dest, &fmt, &proj_id, p) {
-                Ok(path) => println!("{proj_id}: ok => {path:?}"),
+                Ok(path) => println!("=> {path:?}"),
                 Err(e) => println!("{proj_id}! {e}"),
             },
         };
@@ -28,6 +27,8 @@ pub(crate) fn render_all_projects(
 }
 
 pub trait RenderDest {
+    fn pre_flight(&self) -> Result<(), Box<dyn Error>>;
+
     fn write(
         &self,
         proj_id: &ProjectID,

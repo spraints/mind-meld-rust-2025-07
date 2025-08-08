@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::ErrorKind;
 use std::path::PathBuf;
 
 use crate::project::types::ProjectType;
@@ -12,6 +13,18 @@ pub struct OutDir {
 }
 
 impl super::RenderDest for OutDir {
+    fn pre_flight(&self) -> Result<(), Box<dyn std::error::Error>> {
+        match fs::create_dir(&self.path) {
+            Ok(()) => Ok(()),
+            Err(e) if matches!(e.kind(), ErrorKind::AlreadyExists) => Err(format!(
+                "{:?}: directory already exists, remove it to render there again.",
+                self.path
+            )
+            .into()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     fn write(
         &self,
         proj_id: &crate::project::ProjectID,
