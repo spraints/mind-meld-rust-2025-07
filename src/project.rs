@@ -1,9 +1,12 @@
+pub mod types;
+
 use std::error::Error;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{Read, Seek};
 use std::path::PathBuf;
 
+use serde::Deserialize;
 use sha2::{digest::Update, Digest, Sha256};
 use zip::ZipArchive;
 
@@ -13,6 +16,54 @@ use crate::dirs::Dirs;
 pub enum Program {
     Mindstorms,
     Spike,
+}
+
+pub enum Project {
+    Python(PythonProject),
+    IconBlocks(IconBlocksProject),
+    WordBlocks(WordBlocksProject),
+}
+
+impl Project {
+    pub fn project_type(&self) -> types::ProjectType {
+        match self {
+            Project::Python(_) => types::ProjectType::Python,
+            Project::IconBlocks(_) => types::ProjectType::IconBlocks,
+            Project::WordBlocks(_) => types::ProjectType::WordBlocks,
+        }
+    }
+}
+
+pub struct PythonProject {
+    manifest: types::Manifest,
+    raw: RawProject,
+}
+
+impl PythonProject {
+    pub(crate) fn get_source(&self) -> Result<String, Box<dyn Error>> {
+        match self.raw.archive.get_file_content("projectbody.json") {
+            None => Err("no projectbody.json!".into()),
+            Some(d) => {
+                let pb: ProjectBody = serde_json::from_slice(d)?;
+                Ok(pb.main)
+            }
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct ProjectBody {
+    main: String,
+}
+
+pub struct IconBlocksProject {
+    manifest: types::Manifest,
+    raw: RawProject,
+}
+
+pub struct WordBlocksProject {
+    manifest: types::Manifest,
+    raw: RawProject,
 }
 
 pub fn all_programs(dirs: &Dirs) -> Vec<(Program, &PathBuf)> {
@@ -96,6 +147,29 @@ impl RawProject {
         self.archive.hash(&mut hasher);
         hasher.finalize().to_vec()
     }
+
+    pub fn into_project(self) -> Result<Project, Box<dyn Error>> {
+        match self.archive.get_file_content("manifest.json") {
+            None => Err("no manifest".into()),
+            Some(d) => {
+                let manifest: types::Manifest = serde_json::from_slice(d)?;
+                return Ok(match manifest.project_type {
+                    types::ProjectType::WordBlocks => Project::WordBlocks(WordBlocksProject {
+                        manifest,
+                        raw: self,
+                    }),
+                    types::ProjectType::IconBlocks => Project::IconBlocks(IconBlocksProject {
+                        manifest,
+                        raw: self,
+                    }),
+                    types::ProjectType::Python => Project::Python(PythonProject {
+                        manifest,
+                        raw: self,
+                    }),
+                });
+            }
+        }
+    }
 }
 
 pub struct RawArchive {
@@ -122,6 +196,17 @@ impl RawArchive {
             hasher.update(format!("name={}\n", e.name).as_bytes());
             e.contents.hash(hasher);
         }
+    }
+
+    fn get_file_content(&self, name: &str) -> Option<&[u8]> {
+        for e in &self.entries {
+            if e.name == name {
+                if let ArchiveEntryContents::Data(d) = &e.contents {
+                    return Some(&d);
+                }
+            }
+        }
+        None
     }
 }
 

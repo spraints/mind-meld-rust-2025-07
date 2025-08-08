@@ -553,7 +553,12 @@ fn cmd_render(opts: cli::RenderCommand, cfg: config::Config) {
             exit(1);
         }
     };
-    match render::render_all_projects(render::fs::out_dir(out_dir), store, revision) {
+    match render::render_all_projects(
+        render::fs::out_dir(out_dir),
+        render::txt::TextFormatter,
+        store,
+        revision,
+    ) {
         Ok(_) => (),
         Err(e) => println!("error: {e}"),
     };
