@@ -8,8 +8,8 @@ impl super::ProjectFormatter for TextFormatter {
     fn render(&self, proj: &Project) -> RenderResult {
         match proj {
             Project::Python(proj) => render_python(proj),
-            Project::WordBlocks(_) => Err("todo: render word-blocks".into()),
-            Project::IconBlocks(_) => Err("todo: render icon-blocks".into()),
+            Project::WordBlocks => Err("todo: render word-blocks".into()),
+            Project::IconBlocks => Err("todo: render icon-blocks".into()),
         }
     }
 }

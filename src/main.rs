@@ -464,8 +464,8 @@ fn do_auto_commit(
         project_read_errors,
         store_results,
     } = commit::commit(
-        &stores,
-        &dirs,
+        stores,
+        dirs,
         proj_ids,
         "Update tracked projects via auto-commit",
     );

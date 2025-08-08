@@ -20,22 +20,21 @@ pub enum Program {
 
 pub enum Project {
     Python(PythonProject),
-    IconBlocks(IconBlocksProject),
-    WordBlocks(WordBlocksProject),
+    IconBlocks,
+    WordBlocks,
 }
 
 impl Project {
     pub fn project_type(&self) -> types::ProjectType {
         match self {
             Project::Python(_) => types::ProjectType::Python,
-            Project::IconBlocks(_) => types::ProjectType::IconBlocks,
-            Project::WordBlocks(_) => types::ProjectType::WordBlocks,
+            Project::IconBlocks => types::ProjectType::IconBlocks,
+            Project::WordBlocks => types::ProjectType::WordBlocks,
         }
     }
 }
 
 pub struct PythonProject {
-    manifest: types::Manifest,
     raw: RawProject,
 }
 
@@ -54,16 +53,6 @@ impl PythonProject {
 #[derive(Deserialize)]
 struct ProjectBody {
     main: String,
-}
-
-pub struct IconBlocksProject {
-    manifest: types::Manifest,
-    raw: RawProject,
-}
-
-pub struct WordBlocksProject {
-    manifest: types::Manifest,
-    raw: RawProject,
 }
 
 pub fn all_programs(dirs: &Dirs) -> Vec<(Program, &PathBuf)> {
@@ -153,20 +142,11 @@ impl RawProject {
             None => Err("no manifest".into()),
             Some(d) => {
                 let manifest: types::Manifest = serde_json::from_slice(d)?;
-                return Ok(match manifest.project_type {
-                    types::ProjectType::WordBlocks => Project::WordBlocks(WordBlocksProject {
-                        manifest,
-                        raw: self,
-                    }),
-                    types::ProjectType::IconBlocks => Project::IconBlocks(IconBlocksProject {
-                        manifest,
-                        raw: self,
-                    }),
-                    types::ProjectType::Python => Project::Python(PythonProject {
-                        manifest,
-                        raw: self,
-                    }),
-                });
+                Ok(match manifest.project_type {
+                    types::ProjectType::WordBlocks => Project::WordBlocks,
+                    types::ProjectType::IconBlocks => Project::IconBlocks,
+                    types::ProjectType::Python => Project::Python(PythonProject { raw: self }),
+                })
             }
         }
     }
@@ -202,7 +182,7 @@ impl RawArchive {
         for e in &self.entries {
             if e.name == name {
                 if let ArchiveEntryContents::Data(d) = &e.contents {
-                    return Some(&d);
+                    return Some(d);
                 }
             }
         }

@@ -5,7 +5,7 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use crate::project::{
-    types::ProjectType, ArchiveEntryContents, Project, ProjectID, RawArchive, RawProject,
+    types::ProjectType, Project, ProjectID, RawProject,
 };
 
 pub(crate) fn render_all_projects(
@@ -14,7 +14,7 @@ pub(crate) fn render_all_projects(
     store: crate::store::Store,
     revision: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
-    let rev = revision.as_ref().map(|x| x.as_str());
+    let rev = revision.as_deref();
     for proj_id in store.project_ids()? {
         match store.read_project(&proj_id, rev)? {
             None => println!("{proj_id}! missing, oddly."),
