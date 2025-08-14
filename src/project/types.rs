@@ -15,3 +15,13 @@ pub enum ProjectType {
     #[serde(rename = "python")]
     Python,
 }
+
+impl ProjectType {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            ProjectType::WordBlocks => "todo",
+            ProjectType::IconBlocks => "todo",
+            ProjectType::Python => "py",
+        }
+    }
+}
