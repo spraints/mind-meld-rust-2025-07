@@ -553,10 +553,18 @@ fn cmd_render(opts: cli::RenderCommand, cfg: config::Config) {
             exit(1);
         }
     };
+    let revision = match store.resolve(revision.as_deref()) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("{target_store}: error resolving {revision:?}");
+            exit(1);
+        }
+    };
+
     match render::render_all_projects(
         render::fs::out_dir(out_dir),
         render::txt::TextFormatter,
-        store,
+        &store,
         revision,
     ) {
         Ok(_) => (),

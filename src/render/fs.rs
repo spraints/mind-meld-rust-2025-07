@@ -3,6 +3,7 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 
 use crate::project::types::ProjectType;
+use crate::store::Revision;
 
 pub(crate) fn out_dir(path: PathBuf) -> OutDir {
     OutDir { path }
@@ -13,7 +14,7 @@ pub struct OutDir {
 }
 
 impl super::RenderDest for OutDir {
-    fn pre_flight(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn pre_flight(&mut self, _: &Revision) -> Result<(), Box<dyn std::error::Error>> {
         match fs::create_dir(&self.path) {
             Ok(()) => Ok(()),
             Err(e) if matches!(e.kind(), ErrorKind::AlreadyExists) => Err(format!(

@@ -11,6 +11,8 @@ use gix::{Commit, Id, ObjectId, Tree};
 
 use crate::project::*;
 
+use super::Revision;
+
 pub fn open<P: AsRef<Path>>(p: P) -> Result<GitStore, Box<dyn Error>> {
     let r = gix::discover(&p)?;
     GitStore::new(r)
@@ -87,19 +89,17 @@ impl GitStore {
     pub(crate) fn read_project(
         &self,
         id: &ProjectID,
-        revision: Option<&str>,
+        revision: &Revision,
     ) -> Result<Option<RawProject>, Box<dyn Error>> {
         let commit = match revision {
-            None => match self.r.head_commit() {
+            Revision::Empty => return Ok(None),
+            Revision::Latest => match self.r.head_commit() {
                 Ok(c) => c,
                 // If there is no head commit, behave as if the project simply wasn't found.
                 Err(_) => return Ok(None),
             },
-            Some(rev) => {
-                let id = self.r.rev_parse_single(rev)?;
-                let obj = id.object()?;
-                obj.try_into_commit()?
-            }
+            Revision::Git(oid) => self.r.find_commit(*oid)?,
+            // _ => unreachable!(),
         };
 
         match commit.tree()?.lookup_entry_by_path(Self::path_for(id))? {
@@ -348,6 +348,17 @@ impl GitStore {
             Ok("removed")
         } else {
             Ok("not tracked")
+        }
+    }
+
+    pub(crate) fn resolve(&self, expr: Option<&str>) -> Result<super::Revision, Box<dyn Error>> {
+        match expr {
+            None => match self.r.head_commit() {
+                Ok(c) => Ok(Revision::Git(c.id().detach())),
+                // If there is no head commit, behave as if the project simply wasn't found.
+                Err(_) => Ok(Revision::Empty),
+            },
+            Some(rev) => Ok(Revision::Git(self.r.rev_parse_single(rev)?.detach())),
         }
     }
 }

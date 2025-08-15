@@ -6,18 +6,17 @@ use std::error::Error;
 
 use crate::project::types::ProjectType;
 use crate::project::{Project, ProjectID, RawProject};
-use crate::store::Store;
+use crate::store::{Revision, Store};
 
 pub(crate) fn render_all_projects(
     mut dest: impl RenderDest,
     fmt: impl ProjectFormatter,
     store: &Store,
-    revision: Option<String>,
+    revision: Revision,
 ) -> Result<(), Box<dyn Error>> {
-    dest.pre_flight()?;
-    let rev = revision.as_deref();
+    dest.pre_flight(&revision)?;
     for proj_id in store.project_ids()? {
-        match store.read_project(&proj_id, rev)? {
+        match store.read_project(&proj_id, &revision)? {
             None => println!("{proj_id}! missing, oddly."),
             Some(p) => match render_project(&mut dest, &fmt, &proj_id, p) {
                 Ok(Some(msg)) => println!("{proj_id}: {msg}"),
@@ -37,7 +36,7 @@ pub(crate) fn render_all_projects(
 }
 
 pub trait RenderDest {
-    fn pre_flight(&self) -> Result<(), Box<dyn Error>>;
+    fn pre_flight(&mut self, revision: &Revision) -> Result<(), Box<dyn Error>>;
 
     fn write(
         &mut self,

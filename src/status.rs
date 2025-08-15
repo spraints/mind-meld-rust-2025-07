@@ -1,11 +1,9 @@
 use std::error::Error;
 use std::rc::Rc;
 
-use crate::{
-    dirs::Dirs,
-    project::{self, ProjectID},
-    store::Store,
-};
+use crate::dirs::Dirs;
+use crate::project::{self, ProjectID};
+use crate::store::{Revision, Store};
 
 pub enum Status {
     NoDifferences,
@@ -27,7 +25,7 @@ pub fn get_status(
 
     let mut diff = Vec::new();
     for st in stores {
-        match st.read_project(proj, None) {
+        match st.read_project(proj, &Revision::Latest) {
             Err(_) => diff.push(st.clone()),
             Ok(None) => diff.push(st.clone()),
             Ok(Some(st_proj)) => {

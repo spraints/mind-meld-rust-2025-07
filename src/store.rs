@@ -24,6 +24,23 @@ enum StoreInstance {
     Git(git::GitStore),
 }
 
+#[derive(Clone)]
+pub enum Revision {
+    Empty,
+    Latest,
+    Git(gix::ObjectId),
+}
+
+impl Display for Revision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Revision::Empty => write!(f, "(empty)"),
+            Revision::Latest => write!(f, "(latest)"),
+            Revision::Git(oid) => write!(f, "(git:{oid})"),
+        }
+    }
+}
+
 type StoreErrors = Vec<(StoreConfig, Box<dyn Error>)>;
 
 pub type CommitResult = Result<&'static str, Box<dyn Error>>;
@@ -135,7 +152,7 @@ impl StoreInstance {
     fn read_project(
         &self,
         id: &ProjectID,
-        revision: Option<&str>,
+        revision: &Revision,
     ) -> Result<Option<project::RawProject>, Box<dyn Error + 'static>> {
         match self {
             Self::Git(s) => s.read_project(id, revision),
@@ -153,6 +170,12 @@ impl StoreInstance {
             Self::Git(s) => s.log(since),
         }
     }
+
+    fn resolve(&self, expr: Option<&str>) -> Result<Revision, Box<dyn Error>> {
+        match self {
+            Self::Git(s) => s.resolve(expr),
+        }
+    }
 }
 
 impl Store {
@@ -163,7 +186,7 @@ impl Store {
     pub fn read_project(
         &self,
         id: &ProjectID,
-        revision: Option<&str>,
+        revision: &Revision,
     ) -> Result<Option<project::RawProject>, Box<dyn Error>> {
         self.inst.read_project(id, revision)
     }
@@ -176,12 +199,16 @@ impl Store {
         self.inst.commit(projects, message)
     }
 
-    pub(crate) fn untrack(&self, id: &ProjectID, message: &str) -> CommitResult {
+    pub fn untrack(&self, id: &ProjectID, message: &str) -> CommitResult {
         self.inst.untrack(id, message)
     }
 
     pub fn log(&self, since: SystemTime) -> Result<LogResult, Box<dyn Error>> {
         self.inst.log(since)
+    }
+
+    pub fn resolve(&self, expr: Option<&str>) -> Result<Revision, Box<dyn Error>> {
+        self.inst.resolve(expr)
     }
 }
 
