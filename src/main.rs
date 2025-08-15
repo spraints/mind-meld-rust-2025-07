@@ -22,7 +22,7 @@ use notify_debouncer_full::notify::{Error, RecursiveMode};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, DebouncedEvent};
 use project::ProjectID;
 use std::sync::mpsc::channel;
-use store::Store;
+use store::{Revision, Store};
 
 fn main() {
     let cli = cli::Cli::parse();
@@ -558,12 +558,15 @@ fn cmd_render(opts: cli::RenderCommand, cfg: config::Config) {
             exit(1);
         }
     };
-    let revision = match store.resolve(revision.as_deref()) {
-        Ok(s) => s,
-        Err(e) => {
-            println!("{target_store}: error resolving {revision:?}");
-            exit(1);
-        }
+    let revision = match revision {
+        None => Revision::Latest,
+        Some(ref expr) => match store.resolve(expr) {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{target_store}: error resolving {expr}: {e}");
+                exit(1);
+            }
+        },
     };
 
     let res = match (out_dir, tree) {

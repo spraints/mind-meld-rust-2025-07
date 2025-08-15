@@ -352,15 +352,9 @@ impl GitStore {
         }
     }
 
-    pub(crate) fn resolve(&self, expr: Option<&str>) -> Result<super::Revision, Box<dyn Error>> {
-        match expr {
-            None => match self.r.head_commit() {
-                Ok(c) => Ok(Revision::Git(c.id().detach())),
-                // If there is no head commit, behave as if the project simply wasn't found.
-                Err(_) => Ok(Revision::Empty),
-            },
-            Some(rev) => Ok(Revision::Git(self.r.rev_parse_single(rev)?.detach())),
-        }
+    pub(crate) fn resolve(&self, expr: &str) -> Result<super::Revision, Box<dyn Error>> {
+        let id = self.r.rev_parse_single(expr)?;
+        Ok(Revision::Git(id.detach()))
     }
 
     pub(crate) fn store_render(
@@ -369,7 +363,7 @@ impl GitStore {
         msg: &str,
         prev_render: Revision,
         source: Revision,
-    ) -> Result<Id<'_>, Box<dyn Error>> {
+    ) -> Result<Revision, Box<dyn Error>> {
         const RENDER_DUMMY_REF: &str = "RENDER_HEAD";
 
         let dr: FullName = RENDER_DUMMY_REF.try_into()?;
@@ -388,7 +382,7 @@ impl GitStore {
         let id = self
             .r
             .commit(dr, msg, tree_id, render_parents(prev_render, source))?;
-        Ok(id)
+        Ok(Revision::Git(id.detach()))
     }
 }
 

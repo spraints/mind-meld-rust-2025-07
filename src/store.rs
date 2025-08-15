@@ -171,7 +171,7 @@ impl StoreInstance {
         }
     }
 
-    fn resolve(&self, expr: Option<&str>) -> Result<Revision, Box<dyn Error>> {
+    fn resolve(&self, expr: &str) -> Result<Revision, Box<dyn Error>> {
         match self {
             Self::Git(s) => s.resolve(expr),
         }
@@ -183,7 +183,7 @@ impl StoreInstance {
         msg: &str,
         prev_render: Revision,
         source: Revision,
-    ) -> Result<Id<'_>, Box<dyn Error>> {
+    ) -> Result<Revision, Box<dyn Error>> {
         match self {
             Self::Git(s) => s.store_render(rendered, msg, prev_render, source),
         }
@@ -219,7 +219,7 @@ impl Store {
         self.inst.log(since)
     }
 
-    pub fn resolve(&self, expr: Option<&str>) -> Result<Revision, Box<dyn Error>> {
+    pub fn resolve(&self, expr: &str) -> Result<Revision, Box<dyn Error>> {
         self.inst.resolve(expr)
     }
 
@@ -229,7 +229,7 @@ impl Store {
         msg: &str,
         prev_render: Revision,
         source: Revision,
-    ) -> Result<Id, Box<dyn Error>> {
+    ) -> Result<Revision, Box<dyn Error>> {
         self.inst.store_render(rendered, msg, prev_render, source)
     }
 }
