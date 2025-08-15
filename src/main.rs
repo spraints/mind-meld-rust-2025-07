@@ -538,10 +538,15 @@ fn cmd_log(cmd: cli::LogCommand, cfg: Config) {
 
 fn cmd_render(opts: cli::RenderCommand, cfg: config::Config) {
     let cli::RenderCommand {
-        out_dir,
+        dest,
         store,
         revision,
     } = opts;
+    let cli::RenderDest {
+        out_dir,
+        to_store: tree,
+    } = dest;
+
     let target_store = match get_single_store(&cfg, store) {
         None => exit(1),
         Some(s) => s,
@@ -561,12 +566,23 @@ fn cmd_render(opts: cli::RenderCommand, cfg: config::Config) {
         }
     };
 
-    match render::render_all_projects(
-        render::fs::out_dir(out_dir),
-        render::txt::TextFormatter,
-        &store,
-        revision,
-    ) {
+    let res = match (out_dir, tree) {
+        (Some(out_dir), false) => render::render_all_projects(
+            render::fs::out_dir(out_dir),
+            render::txt::TextFormatter,
+            &store,
+            revision,
+        ),
+        (None, true) => render::render_all_projects(
+            render::store::tree(&store),
+            render::txt::TextFormatter,
+            &store,
+            revision,
+        ),
+        _ => unreachable!(),
+    };
+
+    match res {
         Ok(_) => (),
         Err(e) => println!("error: {e}"),
     };

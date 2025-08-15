@@ -6,6 +6,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use gix::object::tree;
 use gix::objs::tree::EntryKind;
+use gix::refs::FullName;
 use gix::revision::walk::Sorting;
 use gix::{Commit, Id, ObjectId, Tree};
 
@@ -361,6 +362,48 @@ impl GitStore {
             Some(rev) => Ok(Revision::Git(self.r.rev_parse_single(rev)?.detach())),
         }
     }
+
+    pub(crate) fn store_render(
+        &self,
+        rendered: &[(String, Vec<u8>)],
+        msg: &str,
+        prev_render: Revision,
+        source: Revision,
+    ) -> Result<Id<'_>, Box<dyn Error>> {
+        const RENDER_DUMMY_REF: &str = "RENDER_HEAD";
+
+        let dr: FullName = RENDER_DUMMY_REF.try_into()?;
+        if let Ok(r) = self.r.find_reference(&dr) {
+            r.delete()?;
+        };
+
+        let et = self.r.empty_tree();
+        let mut tb = tree::Editor::new(&et)?;
+        for (path, contents) in rendered {
+            let blob_id = self.r.write_blob(contents)?;
+            tb.upsert(path, EntryKind::Blob, blob_id)?;
+        }
+        let tree_id = tb.write()?;
+
+        let id = self
+            .r
+            .commit(dr, msg, tree_id, render_parents(prev_render, source))?;
+        Ok(id)
+    }
+}
+
+fn render_parents(prev_render: Revision, source: Revision) -> Vec<ObjectId> {
+    fn a(v: &mut Vec<ObjectId>, r: Revision) {
+        match r {
+            Revision::Empty => {}
+            Revision::Latest => unreachable!(),
+            Revision::Git(oid) => v.push(oid),
+        };
+    }
+    let mut parents = Vec::with_capacity(2);
+    a(&mut parents, prev_render);
+    a(&mut parents, source);
+    parents
 }
 
 fn validate(r: &gix::Repository) -> Result<(), Box<dyn Error>> {

@@ -144,8 +144,8 @@ pub struct AutoCommitCommand {
 
 #[derive(Args, Debug)]
 pub struct RenderCommand {
-    #[arg(short, long)]
-    pub out_dir: PathBuf,
+    #[command(flatten)]
+    pub dest: RenderDest,
 
     /// Which store to pull data from (must be specified if there's more than one store configured)
     #[arg(long)]
@@ -154,4 +154,27 @@ pub struct RenderCommand {
     // Which revision to render (default is the most recent commit)
     #[arg(long)]
     pub revision: Option<String>,
+}
+
+#[derive(Args, Debug)]
+#[group(required = true, multiple = false)]
+pub struct RenderDest {
+    /// Render to the specified directory.
+    #[arg(short, long)]
+    pub out_dir: Option<PathBuf>,
+
+    /// Render back to the original store (e.g. as a commit).
+    #[arg(short, long)]
+    pub to_store: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct SyncRenderedBranchCommand {
+    /// Branch where rendered versions of programs will be stored (default is "rendered")
+    #[arg(short, long)]
+    pub branch: Option<String>,
+
+    /// Which store to pull data from (must be specified if there's more than one store configured)
+    #[arg(long)]
+    pub store: Option<PathBuf>,
 }

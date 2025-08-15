@@ -176,6 +176,18 @@ impl StoreInstance {
             Self::Git(s) => s.resolve(expr),
         }
     }
+
+    fn store_render(
+        &self,
+        rendered: &[(String, Vec<u8>)],
+        msg: &str,
+        prev_render: Revision,
+        source: Revision,
+    ) -> Result<Id<'_>, Box<dyn Error>> {
+        match self {
+            Self::Git(s) => s.store_render(rendered, msg, prev_render, source),
+        }
+    }
 }
 
 impl Store {
@@ -209,6 +221,16 @@ impl Store {
 
     pub fn resolve(&self, expr: Option<&str>) -> Result<Revision, Box<dyn Error>> {
         self.inst.resolve(expr)
+    }
+
+    pub(crate) fn store_render(
+        &self,
+        rendered: &[(String, Vec<u8>)],
+        msg: &str,
+        prev_render: Revision,
+        source: Revision,
+    ) -> Result<Id, Box<dyn Error>> {
+        self.inst.store_render(rendered, msg, prev_render, source)
     }
 }
 
